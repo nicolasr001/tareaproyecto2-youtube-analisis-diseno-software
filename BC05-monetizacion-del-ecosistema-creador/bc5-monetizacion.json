@@ -1,0 +1,381 @@
+{
+  "openapi": "3.0.4",
+  "info": {
+    "title": "BC5 - Monetizacion del Ecosistema Creador",
+    "description": "Responsabilidad central: gestionar como los creadores ganan dinero y como se registran, calculan y pagan esos ingresos.\n\nEste contexto trata al video como MonetizableUnit (fuente de ingresos sujeta a reglas de revenue share), NUNCA como archivo tecnico ni como producto editorial. Cobra y paga dentro del ecosistema creador-espectador. NO negocia con anunciantes ni define que anuncio se muestra (eso es Publicidad BC6); solo recibe el evento de ingreso ya confirmado.\n\nAlcance (Si): elegibilidad, revenue share, membresias de canal, propinas, saldo, payouts, reportes.\nAlcance (No): crear campanas de anunciantes, recomendar videos, procesar video.\n\nError tipico a evitar (segun el profesor): los payouts al creador NUNCA se hacen en Publicidad. Publicidad cobra al anunciante; Monetizacion paga al creador.\n\nEventos que EMITE: MonetizationEnabled, MonetizationDisabled, RevenueAttributed, PayoutProcessed.\nEventos que CONSUME: AdRevenueConfirmed (desde Publicidad), ItemPublished/ItemRestricted (desde Catalogo).\n\nRequisitos funcionales cubiertos: RF-M1 (alta y elegibilidad), RF-M2 (productos del creador), RF-M3 (registro de ingresos), RF-M4 (consulta de ganancias), RF-M5 (pagos).",
+    "version": "1.0.0",
+    "contact": { "name": "Equipo BC5 - Monetizacion", "email": "bc5-monetizacion@proyecto-youtube.uoh.cl" }
+  },
+  "servers": [
+    { "url": "https://api.youtube-ddd.local/monetizacion/v1", "description": "Servidor del Bounded Context Monetizacion del Ecosistema Creador" }
+  ],
+  "tags": [
+    { "name": "eligibility", "description": "RF-M1: Alta y elegibilidad" },
+    { "name": "creator-products", "description": "RF-M2: Configuracion de productos del creador" },
+    { "name": "revenue", "description": "RF-M3: Registro de ingresos" },
+    { "name": "earnings", "description": "RF-M4: Consulta de ganancias" },
+    { "name": "payouts", "description": "RF-M5: Pagos" }
+  ],
+  "paths": {
+    "/channels/{channelId}/monetization/apply": {
+      "post": {
+        "tags": ["eligibility"],
+        "summary": "Solicitar monetizar un canal.",
+        "description": "RF-M1: El sistema debe permitir que un creador solicite monetizar su canal, evaluando requisitos de elegibilidad (suscriptores, horas de visualizacion, cumplimiento de politicas).",
+        "operationId": "applyForMonetization",
+        "parameters": [{ "name": "channelId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": {
+            "description": "Resultado de la evaluacion de elegibilidad.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/EligibilityResult" },
+                "example": { "channelId": "chn-55ee10", "status": "PENDING", "subscribersCount": 18420, "watchHoursLast12Months": 5200 }
+              }
+            }
+          }
+        },
+        "security": [{ "bearerAuth": ["creator"] }]
+      }
+    },
+    "/channels/{channelId}/monetization": {
+      "get": {
+        "tags": ["eligibility"],
+        "summary": "Consultar estado de elegibilidad.",
+        "description": "RF-M1: El sistema debe informar el estado de elegibilidad (apto, pendiente, rechazado).",
+        "operationId": "getMonetizationStatus",
+        "parameters": [{ "name": "channelId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Estado actual de monetizacion.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MonetizationStatus" } } } }
+        }
+      },
+      "patch": {
+        "tags": ["eligibility"],
+        "summary": "Activar o desactivar monetizacion.",
+        "description": "RF-M1: El sistema debe permitir activar o desactivar monetizacion a nivel canal o contenido. Emite evento MonetizationEnabled/MonetizationDisabled.",
+        "operationId": "toggleMonetization",
+        "parameters": [{ "name": "channelId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ToggleMonetizationRequest" }, "example": { "enabled": true, "scope": "CHANNEL" } } }
+        },
+        "responses": { "200": { "description": "Estado de monetizacion actualizado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MonetizationStatus" } } } } },
+        "security": [{ "bearerAuth": ["creator"] }]
+      }
+    },
+    "/channels/{channelId}/membership-tiers": {
+      "post": {
+        "tags": ["creator-products"],
+        "summary": "Definir un nivel de membresia.",
+        "description": "RF-M2: El sistema debe permitir definir niveles de membresia de canal (precio, beneficios).",
+        "operationId": "createMembershipTier",
+        "parameters": [{ "name": "channelId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateMembershipTierRequest" },
+              "example": { "name": "Nivel Bronce", "priceUsd": 4.99, "benefits": ["Emojis exclusivos", "Insignia de miembro"] }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Nivel de membresia creado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MembershipTier" } } } } },
+        "security": [{ "bearerAuth": ["creator"] }]
+      },
+      "get": {
+        "tags": ["creator-products"],
+        "summary": "Listar niveles de membresia del canal.",
+        "operationId": "listMembershipTiers",
+        "parameters": [{ "name": "channelId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Lista de niveles.", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/MembershipTier" } } } } } }
+      }
+    },
+    "/memberships/purchases": {
+      "post": {
+        "tags": ["creator-products"],
+        "summary": "Registrar compra de membresia.",
+        "description": "RF-M2: El sistema debe registrar cuando un espectador compra una membresia o deja propina.",
+        "operationId": "purchaseMembership",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PurchaseMembershipRequest" },
+              "example": { "viewerId": "usr-44aa21", "tierId": "tier-bronze-01" }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Membresia registrada. Genera RevenueEvent." } },
+        "security": [{ "bearerAuth": ["viewer"] }]
+      }
+    },
+    "/tips": {
+      "post": {
+        "tags": ["creator-products"],
+        "summary": "Registrar una propina.",
+        "description": "RF-M2: El sistema debe permitir gestionar propinas / agradecimientos en videos.",
+        "operationId": "sendTip",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SendTipRequest" },
+              "example": { "viewerId": "usr-44aa21", "targetMonetizableUnitId": "mu-30bf77", "amountUsd": 5.00 }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Propina registrada." } },
+        "security": [{ "bearerAuth": ["viewer"] }]
+      }
+    },
+    "/revenue-events": {
+      "post": {
+        "tags": ["revenue"],
+        "summary": "Registrar un evento de ingreso.",
+        "description": "RF-M3: El sistema debe registrar eventos de ingreso asociados a contenido y canal, aceptando ingresos de publicidad, membresias y propinas, y aplicar revenue share. Este endpoint es invocado normalmente por el manejador del evento AdRevenueConfirmed desde Publicidad.",
+        "operationId": "createRevenueEvent",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateRevenueEventRequest" },
+              "example": { "channelId": "chn-55ee10", "monetizableUnitId": "mu-30bf77", "source": "ADVERTISING", "grossAmountUsd": 12.40 }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Evento de ingreso registrado con revenue share aplicado.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RevenueEvent" },
+                "example": { "revenueEventId": "rev-901aa2", "channelId": "chn-55ee10", "source": "ADVERTISING", "grossAmountUsd": 12.40, "creatorShareUsd": 6.82, "status": "PENDING" }
+              }
+            }
+          }
+        },
+        "security": [{ "bearerAuth": ["system"] }]
+      }
+    },
+    "/revenue-events/{revenueEventId}": {
+      "get": {
+        "tags": ["revenue"],
+        "summary": "Consultar un evento de ingreso.",
+        "description": "RF-M3: El sistema debe mantener ingresos en estados: pendiente, confirmado, pagado.",
+        "operationId": "getRevenueEvent",
+        "parameters": [{ "name": "revenueEventId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Detalle del evento de ingreso.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RevenueEvent" } } } } }
+      }
+    },
+    "/channels/{channelId}/earnings": {
+      "get": {
+        "tags": ["earnings"],
+        "summary": "Consultar ganancias por periodo.",
+        "description": "RF-M4: El sistema debe permitir consultar ganancias por periodo (dia, mes, etc.) con desglose por video, fuente de ingreso y metricas (RPM).",
+        "operationId": "getEarnings",
+        "parameters": [
+          { "name": "channelId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "from", "in": "query", "required": true, "schema": { "type": "string", "format": "date" } },
+          { "name": "to", "in": "query", "required": true, "schema": { "type": "string", "format": "date" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reporte de ganancias del periodo.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/EarningsReport" },
+                "example": { "channelId": "chn-55ee10", "totalEarningsUsd": 1845.30, "rpm": 3.12, "breakdown": [{ "monetizableUnitId": "mu-30bf77", "source": "ADVERTISING", "amountUsd": 920.10 }] }
+              }
+            }
+          }
+        },
+        "security": [{ "bearerAuth": ["creator"] }]
+      }
+    },
+    "/channels/{channelId}/earnings/export": {
+      "get": {
+        "tags": ["earnings"],
+        "summary": "Generar reporte exportable.",
+        "description": "RF-M4: El sistema debe generar reportes exportables para el creador.",
+        "operationId": "exportEarningsReport",
+        "parameters": [
+          { "name": "channelId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "format", "in": "query", "schema": { "type": "string", "enum": ["CSV", "PDF"], "default": "CSV" } }
+        ],
+        "responses": { "200": { "description": "Archivo de reporte generado.", "content": { "application/octet-stream": { "schema": { "type": "string", "format": "binary" } } } } },
+        "security": [{ "bearerAuth": ["creator"] }]
+      }
+    },
+    "/channels/{channelId}/balance": {
+      "get": {
+        "tags": ["payouts"],
+        "summary": "Consultar saldo disponible.",
+        "description": "RF-M5: El sistema debe mantener el saldo disponible del creador.",
+        "operationId": "getBalance",
+        "parameters": [{ "name": "channelId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Saldo disponible.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Balance" }, "example": { "channelId": "chn-55ee10", "availableUsd": 642.18, "minimumPayoutUsd": 100.00 } } } }
+        },
+        "security": [{ "bearerAuth": ["creator"] }]
+      }
+    },
+    "/payouts": {
+      "post": {
+        "tags": ["payouts"],
+        "summary": "Solicitar retiro.",
+        "description": "RF-M5: El sistema debe permitir solicitar retiro cuando se supere el minimo. Emite evento PayoutProcessed.",
+        "operationId": "requestPayout",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RequestPayoutRequest" }, "example": { "channelId": "chn-55ee10", "amountUsd": 500.00 } } }
+        },
+        "responses": {
+          "201": { "description": "Solicitud de pago creada.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Payout" } } } },
+          "409": { "description": "Monto solicitado por debajo del minimo de retiro." }
+        },
+        "security": [{ "bearerAuth": ["creator"] }]
+      }
+    },
+    "/channels/{channelId}/payouts": {
+      "get": {
+        "tags": ["payouts"],
+        "summary": "Consultar historial de pagos.",
+        "description": "RF-M5: El sistema debe registrar historial de pagos realizados.",
+        "operationId": "listPayouts",
+        "parameters": [
+          { "name": "channelId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } }
+        ],
+        "responses": { "200": { "description": "Historial de pagos.", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Payout" } } } } } },
+        "security": [{ "bearerAuth": ["creator"] }]
+      }
+    },
+    "/channels/{channelId}/tax-documents": {
+      "post": {
+        "tags": ["payouts"],
+        "summary": "Registrar documentacion fiscal.",
+        "description": "RF-M5: El sistema debe soportar documentacion fiscal requerida para cobrar.",
+        "operationId": "submitTaxDocument",
+        "parameters": [{ "name": "channelId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TaxDocumentRequest" } } } },
+        "responses": { "201": { "description": "Documento fiscal registrado." } },
+        "security": [{ "bearerAuth": ["creator"] }]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "EligibilityResult": {
+        "type": "object",
+        "properties": {
+          "channelId": { "type": "string" },
+          "status": { "type": "string", "enum": ["PENDING", "APPROVED", "REJECTED"] },
+          "subscribersCount": { "type": "integer" },
+          "watchHoursLast12Months": { "type": "integer" }
+        }
+      },
+      "MonetizationStatus": {
+        "type": "object",
+        "properties": { "channelId": { "type": "string" }, "isEnabled": { "type": "boolean" }, "scope": { "type": "string", "enum": ["CHANNEL", "CONTENT"] } }
+      },
+      "ToggleMonetizationRequest": {
+        "type": "object",
+        "required": ["enabled", "scope"],
+        "properties": { "enabled": { "type": "boolean" }, "scope": { "type": "string", "enum": ["CHANNEL", "CONTENT"] } }
+      },
+      "CreateMembershipTierRequest": {
+        "type": "object",
+        "required": ["name", "priceUsd"],
+        "properties": { "name": { "type": "string" }, "priceUsd": { "type": "number", "format": "float" }, "benefits": { "type": "array", "items": { "type": "string" } } }
+      },
+      "MembershipTier": {
+        "type": "object",
+        "description": "Entidad del agregado CreatorAccount (composicion).",
+        "properties": {
+          "tierId": { "type": "string" },
+          "channelId": { "type": "string" },
+          "name": { "type": "string" },
+          "priceUsd": { "type": "number" },
+          "benefits": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "PurchaseMembershipRequest": {
+        "type": "object",
+        "required": ["viewerId", "tierId"],
+        "properties": { "viewerId": { "type": "string" }, "tierId": { "type": "string" } }
+      },
+      "SendTipRequest": {
+        "type": "object",
+        "required": ["viewerId", "targetMonetizableUnitId", "amountUsd"],
+        "properties": { "viewerId": { "type": "string" }, "targetMonetizableUnitId": { "type": "string" }, "amountUsd": { "type": "number", "format": "float" } }
+      },
+      "CreateRevenueEventRequest": {
+        "type": "object",
+        "required": ["channelId", "source", "grossAmountUsd"],
+        "properties": {
+          "channelId": { "type": "string" },
+          "monetizableUnitId": { "type": "string", "description": "Referencia al video como MonetizableUnit, modelo propio de este contexto (NO el VideoAsset de Publicacion ni el CatalogItem de Catalogo)." },
+          "source": { "type": "string", "enum": ["ADVERTISING", "MEMBERSHIP", "TIP"] },
+          "grossAmountUsd": { "type": "number", "format": "float" }
+        }
+      },
+      "RevenueEvent": {
+        "type": "object",
+        "description": "Entidad del agregado CreatorAccount, encapsula la regla de revenue share.",
+        "properties": {
+          "revenueEventId": { "type": "string" },
+          "channelId": { "type": "string" },
+          "source": { "type": "string" },
+          "grossAmountUsd": { "type": "number" },
+          "creatorShareUsd": { "type": "number" },
+          "status": { "type": "string", "enum": ["PENDING", "CONFIRMED", "PAID"] }
+        }
+      },
+      "EarningsReport": {
+        "type": "object",
+        "properties": {
+          "channelId": { "type": "string" },
+          "totalEarningsUsd": { "type": "number" },
+          "rpm": { "type": "number", "description": "Revenue per mille (ingreso por cada 1000 vistas)." },
+          "breakdown": { "type": "array", "items": { "$ref": "#/components/schemas/EarningsBreakdownEntry" } }
+        }
+      },
+      "EarningsBreakdownEntry": {
+        "type": "object",
+        "properties": { "monetizableUnitId": { "type": "string" }, "source": { "type": "string" }, "amountUsd": { "type": "number" } }
+      },
+      "Balance": {
+        "type": "object",
+        "properties": { "channelId": { "type": "string" }, "availableUsd": { "type": "number" }, "minimumPayoutUsd": { "type": "number" } }
+      },
+      "RequestPayoutRequest": {
+        "type": "object",
+        "required": ["channelId", "amountUsd"],
+        "properties": { "channelId": { "type": "string" }, "amountUsd": { "type": "number" } }
+      },
+      "Payout": {
+        "type": "object",
+        "description": "Aggregate Root CreatorAccount es quien controla la emision de Payout (composicion).",
+        "properties": {
+          "payoutId": { "type": "string" },
+          "channelId": { "type": "string" },
+          "amountUsd": { "type": "number" },
+          "status": { "type": "string", "enum": ["REQUESTED", "PROCESSING", "PAID", "FAILED"] },
+          "requestedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "TaxDocumentRequest": {
+        "type": "object",
+        "required": ["documentType", "documentUrl"],
+        "properties": { "documentType": { "type": "string" }, "documentUrl": { "type": "string" } }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": { "code": { "type": "string" }, "message": { "type": "string" }, "timestamp": { "type": "string", "format": "date-time" } }
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    }
+  }
+}

@@ -1,0 +1,392 @@
+{
+  "openapi": "3.0.4",
+  "info": {
+    "title": "BC6 - Publicidad y Marketplace de Anunciantes",
+    "description": "Responsabilidad central: gestionar el negocio publicitario B2B: campanas, inventario, targeting, entrega de anuncios e ingresos para la plataforma.\n\nEste contexto trata al video como AdSlot (slot/oportunidad de insercion de un anuncio), NUNCA como archivo tecnico ni como producto editorial. El cliente principal es el ANUNCIANTE, no el creador.\n\nAlcance (Si): anunciantes, campanas, creativos, decisiones de ad, impresiones, billing.\nAlcance (No): pagar al creador directamente (eso es Monetizacion BC5), comentarios, recomendaciones.\n\nError tipico a evitar (segun el profesor): Publicidad NUNCA paga directamente al creador. Cuando se confirma una impresion facturable, este contexto emite un evento que Monetizacion consume para repartir ingresos.\n\nEventos que EMITE: AdServed, BillableImpressionConfirmed, AdRevenueConfirmed (consumido por Monetizacion), CampaignBudgetExhausted.\nEventos que CONSUME: ItemPublished/ItemRestricted (desde Catalogo, para inventario), EngagementSignalAggregated (desde Audiencia/Descubrimiento, para brand safety).\n\nRequisitos funcionales cubiertos: RF-F1 (anunciantes), RF-F2 (campanas), RF-F3 (creativos), RF-F4 (targeting), RF-F5 (inventario), RF-F6 (entrega de anuncios), RF-F7 (medicion), RF-F8 (reporting).",
+    "version": "1.0.0",
+    "contact": { "name": "Equipo BC6 - Publicidad", "email": "bc6-publicidad@proyecto-youtube.uoh.cl" }
+  },
+  "servers": [
+    { "url": "https://api.youtube-ddd.local/publicidad/v1", "description": "Servidor del Bounded Context Publicidad y Marketplace de Anunciantes" }
+  ],
+  "tags": [
+    { "name": "advertisers", "description": "RF-F1: Gestion de anunciantes" },
+    { "name": "campaigns", "description": "RF-F2: Campanas" },
+    { "name": "creatives", "description": "RF-F3: Creativos publicitarios" },
+    { "name": "targeting", "description": "RF-F4: Targeting" },
+    { "name": "inventory", "description": "RF-F5: Inventario publicitario" },
+    { "name": "ad-delivery", "description": "RF-F6: Entrega de anuncios" },
+    { "name": "measurement", "description": "RF-F7: Medicion" },
+    { "name": "reporting", "description": "RF-F8: Reporting para anunciantes" }
+  ],
+  "paths": {
+    "/advertisers": {
+      "post": {
+        "tags": ["advertisers"],
+        "summary": "Registrar cuenta de anunciante.",
+        "description": "RF-F1: El sistema debe permitir registrar cuentas de anunciantes.",
+        "operationId": "createAdvertiser",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateAdvertiserRequest" },
+              "example": { "companyName": "Acme Corp", "billingEmail": "billing@acme.com" }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Anunciante registrado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Advertiser" } } } } }
+      }
+    },
+    "/advertisers/{advertiserId}/billing": {
+      "put": {
+        "tags": ["advertisers"],
+        "summary": "Administrar datos de facturacion.",
+        "description": "RF-F1: El sistema debe permitir administrar datos de facturacion del anunciante.",
+        "operationId": "updateAdvertiserBilling",
+        "parameters": [{ "name": "advertiserId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BillingInfo" } } } },
+        "responses": { "200": { "description": "Datos de facturacion actualizados." } },
+        "security": [{ "bearerAuth": ["advertiser"] }]
+      }
+    },
+    "/campaigns": {
+      "post": {
+        "tags": ["campaigns"],
+        "summary": "Crear campana.",
+        "description": "RF-F2: El sistema debe permitir crear campanas con objetivo, presupuesto y vigencia.",
+        "operationId": "createCampaign",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateCampaignRequest" },
+              "example": { "advertiserId": "adv-12cd34", "objective": "BRAND_AWARENESS", "budgetUsd": 5000.00, "startDate": "2026-07-01", "endDate": "2026-07-31" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Campana creada.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Campaign" },
+                "example": { "campaignId": "cmp-77ee10", "advertiserId": "adv-12cd34", "status": "ACTIVE", "budgetUsd": 5000.00, "spentUsd": 0.00 }
+              }
+            }
+          }
+        },
+        "security": [{ "bearerAuth": ["advertiser"] }]
+      }
+    },
+    "/campaigns/{campaignId}/pause": {
+      "post": {
+        "tags": ["campaigns"],
+        "summary": "Pausar campana.",
+        "description": "RF-F2: El sistema debe permitir pausar, reanudar y finalizar campanas.",
+        "operationId": "pauseCampaign",
+        "parameters": [{ "name": "campaignId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Campana pausada.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Campaign" } } } } },
+        "security": [{ "bearerAuth": ["advertiser"] }]
+      }
+    },
+    "/campaigns/{campaignId}/resume": {
+      "post": {
+        "tags": ["campaigns"],
+        "summary": "Reanudar campana.",
+        "operationId": "resumeCampaign",
+        "parameters": [{ "name": "campaignId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Campana reanudada.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Campaign" } } } } },
+        "security": [{ "bearerAuth": ["advertiser"] }]
+      }
+    },
+    "/campaigns/{campaignId}/end": {
+      "post": {
+        "tags": ["campaigns"],
+        "summary": "Finalizar campana.",
+        "operationId": "endCampaign",
+        "parameters": [{ "name": "campaignId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Campana finalizada.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Campaign" } } } } },
+        "security": [{ "bearerAuth": ["advertiser"] }]
+      }
+    },
+    "/campaigns/{campaignId}/creatives": {
+      "post": {
+        "tags": ["creatives"],
+        "summary": "Subir y asociar un creativo.",
+        "description": "RF-F3: El sistema debe permitir subir y registrar creativos (video, display, etc.), asociarlos a campanas y validarlos segun politicas publicitarias.",
+        "operationId": "uploadCreative",
+        "parameters": [{ "name": "campaignId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateCreativeRequest" },
+              "example": { "type": "VIDEO", "assetUrl": "https://cdn.youtube-ddd.local/ads/creative-001.mp4", "durationSeconds": 15 }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Creativo registrado y en validacion.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Creative" } } } } },
+        "security": [{ "bearerAuth": ["advertiser"] }]
+      },
+      "get": {
+        "tags": ["creatives"],
+        "summary": "Listar creativos de la campana.",
+        "operationId": "listCreatives",
+        "parameters": [{ "name": "campaignId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Lista de creativos.", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Creative" } } } } } }
+      }
+    },
+    "/campaigns/{campaignId}/targeting": {
+      "put": {
+        "tags": ["targeting"],
+        "summary": "Definir criterios de segmentacion.",
+        "description": "RF-F4: El sistema debe permitir definir criterios de segmentacion (pais, edad, intereses, categoria de contenido, etc.).",
+        "operationId": "setTargeting",
+        "parameters": [{ "name": "campaignId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/TargetingCriteria" },
+              "example": { "countries": ["CL", "AR"], "minAge": 18, "interests": ["TECHNOLOGY"], "contentCategories": ["EDUCATION"] }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Targeting actualizado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TargetingCriteria" } } } } },
+        "security": [{ "bearerAuth": ["advertiser"] }]
+      }
+    },
+    "/campaigns/{campaignId}/targeting/inventory-estimate": {
+      "get": {
+        "tags": ["targeting"],
+        "summary": "Estimar inventario disponible.",
+        "description": "RF-F4: El sistema debe estimar inventario disponible segun targeting.",
+        "operationId": "estimateInventory",
+        "parameters": [{ "name": "campaignId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Estimacion de inventario.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InventoryEstimate" }, "example": { "estimatedDailyImpressions": 184000 } } } }
+        },
+        "security": [{ "bearerAuth": ["advertiser"] }]
+      }
+    },
+    "/ad-slots/{candidateId}/eligibility": {
+      "get": {
+        "tags": ["inventory"],
+        "summary": "Determinar si un contenido es elegible para mostrar anuncios.",
+        "description": "RF-F5: El sistema debe determinar que contenidos son elegibles para mostrar anuncios, respetando restricciones del catalogo (contenido no monetizable, restringido, etc.).",
+        "operationId": "checkAdSlotEligibility",
+        "parameters": [{ "name": "candidateId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": {
+            "description": "Resultado de elegibilidad del AdSlot.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AdSlotEligibility" }, "example": { "candidateId": "itm-30bf77", "isEligible": true, "reason": null } } }
+          }
+        }
+      }
+    },
+    "/ad-decisions": {
+      "post": {
+        "tags": ["ad-delivery"],
+        "summary": "Decidir que anuncio mostrar.",
+        "description": "RF-F6: Ante una oportunidad de visualizacion, el sistema debe decidir que anuncio mostrar (o ninguno), considerando campanas activas, targeting, subasta/prioridad y brand safety. Soporta formatos pre-roll, mid-roll, display.",
+        "operationId": "decideAd",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AdDecisionRequest" },
+              "example": { "candidateId": "itm-30bf77", "viewerId": "usr-44aa21", "slotFormat": "PRE_ROLL", "viewerCountry": "CL" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Decision de anuncio tomada.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AdDecision" },
+                "example": { "decisionId": "dec-55aa11", "campaignId": "cmp-77ee10", "creativeId": "crv-90bb22", "slotFormat": "PRE_ROLL" }
+              }
+            }
+          },
+          "204": { "description": "No hay anuncio elegible para esta oportunidad." }
+        }
+      }
+    },
+    "/impressions": {
+      "post": {
+        "tags": ["measurement"],
+        "summary": "Registrar impresion servida.",
+        "description": "RF-F7: El sistema debe registrar impresiones servidas, clicks y skips, y calcular gasto de campana. Emite evento AdServed y, si es facturable, BillableImpressionConfirmed.",
+        "operationId": "recordImpression",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RecordImpressionRequest" },
+              "example": { "decisionId": "dec-55aa11", "wasSkipped": false, "wasClicked": false }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Impresion registrada y gasto actualizado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Impression" } } } } }
+      }
+    },
+    "/campaigns/{campaignId}/metrics": {
+      "get": {
+        "tags": ["reporting"],
+        "summary": "Exponer metricas de campana.",
+        "description": "RF-F8: El sistema debe exponer metricas de campana: impresiones, CTR, CPM, gasto.",
+        "operationId": "getCampaignMetrics",
+        "parameters": [{ "name": "campaignId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": {
+            "description": "Metricas agregadas de la campana.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CampaignMetrics" },
+                "example": { "campaignId": "cmp-77ee10", "impressions": 184320, "clicks": 2104, "ctr": 1.14, "cpmUsd": 4.20, "spentUsd": 774.14 }
+              }
+            }
+          }
+        },
+        "security": [{ "bearerAuth": ["advertiser"] }]
+      }
+    },
+    "/campaigns/{campaignId}/invoices": {
+      "get": {
+        "tags": ["reporting"],
+        "summary": "Generar invoice para el anunciante.",
+        "description": "RF-F8: El sistema debe generar reportes e invoices para el anunciante.",
+        "operationId": "getCampaignInvoices",
+        "parameters": [{ "name": "campaignId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Lista de invoices.", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Invoice" } } } } } },
+        "security": [{ "bearerAuth": ["advertiser"] }]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CreateAdvertiserRequest": {
+        "type": "object",
+        "required": ["companyName", "billingEmail"],
+        "properties": { "companyName": { "type": "string" }, "billingEmail": { "type": "string", "format": "email" } }
+      },
+      "Advertiser": {
+        "type": "object",
+        "description": "Entidad raiz de cuenta B2B. Distinta de Channel (BC2) y CommunityMember (BC4): aqui 'cuenta' significa cliente de negocio.",
+        "properties": { "advertiserId": { "type": "string" }, "companyName": { "type": "string" }, "billingEmail": { "type": "string" } }
+      },
+      "BillingInfo": {
+        "type": "object",
+        "properties": { "taxId": { "type": "string" }, "address": { "type": "string" }, "paymentMethod": { "type": "string" } }
+      },
+      "CreateCampaignRequest": {
+        "type": "object",
+        "required": ["advertiserId", "objective", "budgetUsd", "startDate", "endDate"],
+        "properties": {
+          "advertiserId": { "type": "string" },
+          "objective": { "type": "string", "enum": ["BRAND_AWARENESS", "TRAFFIC", "CONVERSIONS"] },
+          "budgetUsd": { "type": "number", "format": "float" },
+          "startDate": { "type": "string", "format": "date" },
+          "endDate": { "type": "string", "format": "date" }
+        }
+      },
+      "Campaign": {
+        "type": "object",
+        "description": "Aggregate Root de este Bounded Context. Controla Creative y AdDecision (composicion).",
+        "properties": {
+          "campaignId": { "type": "string" },
+          "advertiserId": { "type": "string" },
+          "status": { "type": "string", "enum": ["ACTIVE", "PAUSED", "ENDED", "BUDGET_EXHAUSTED"] },
+          "budgetUsd": { "type": "number" },
+          "spentUsd": { "type": "number" }
+        }
+      },
+      "CreateCreativeRequest": {
+        "type": "object",
+        "required": ["type", "assetUrl"],
+        "properties": { "type": { "type": "string", "enum": ["VIDEO", "DISPLAY"] }, "assetUrl": { "type": "string" }, "durationSeconds": { "type": "integer" } }
+      },
+      "Creative": {
+        "type": "object",
+        "description": "Entidad parte del agregado Campaign (composicion).",
+        "properties": {
+          "creativeId": { "type": "string" },
+          "campaignId": { "type": "string" },
+          "type": { "type": "string" },
+          "assetUrl": { "type": "string" },
+          "validationStatus": { "type": "string", "enum": ["PENDING", "APPROVED", "REJECTED"] }
+        }
+      },
+      "TargetingCriteria": {
+        "type": "object",
+        "description": "Value Object embebido en Campaign.",
+        "properties": {
+          "countries": { "type": "array", "items": { "type": "string" } },
+          "minAge": { "type": "integer" },
+          "interests": { "type": "array", "items": { "type": "string" } },
+          "contentCategories": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "InventoryEstimate": {
+        "type": "object",
+        "properties": { "estimatedDailyImpressions": { "type": "integer" } }
+      },
+      "AdSlotEligibility": {
+        "type": "object",
+        "properties": { "candidateId": { "type": "string" }, "isEligible": { "type": "boolean" }, "reason": { "type": "string", "nullable": true } }
+      },
+      "AdDecisionRequest": {
+        "type": "object",
+        "required": ["candidateId", "viewerId", "slotFormat"],
+        "properties": {
+          "candidateId": { "type": "string", "description": "Referencia al AdSlot, modelo propio de este contexto." },
+          "viewerId": { "type": "string" },
+          "slotFormat": { "type": "string", "enum": ["PRE_ROLL", "MID_ROLL", "DISPLAY"] },
+          "viewerCountry": { "type": "string" }
+        }
+      },
+      "AdDecision": {
+        "type": "object",
+        "properties": {
+          "decisionId": { "type": "string" },
+          "campaignId": { "type": "string" },
+          "creativeId": { "type": "string" },
+          "slotFormat": { "type": "string" }
+        }
+      },
+      "RecordImpressionRequest": {
+        "type": "object",
+        "required": ["decisionId"],
+        "properties": { "decisionId": { "type": "string" }, "wasSkipped": { "type": "boolean" }, "wasClicked": { "type": "boolean" } }
+      },
+      "Impression": {
+        "type": "object",
+        "properties": { "impressionId": { "type": "string" }, "decisionId": { "type": "string" }, "isBillable": { "type": "boolean" }, "servedAt": { "type": "string", "format": "date-time" } }
+      },
+      "CampaignMetrics": {
+        "type": "object",
+        "properties": {
+          "campaignId": { "type": "string" },
+          "impressions": { "type": "integer" },
+          "clicks": { "type": "integer" },
+          "ctr": { "type": "number", "description": "Click-through rate en porcentaje." },
+          "cpmUsd": { "type": "number", "description": "Costo por mil impresiones." },
+          "spentUsd": { "type": "number" }
+        }
+      },
+      "Invoice": {
+        "type": "object",
+        "properties": { "invoiceId": { "type": "string" }, "campaignId": { "type": "string" }, "amountUsd": { "type": "number" }, "issuedAt": { "type": "string", "format": "date-time" } }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": { "code": { "type": "string" }, "message": { "type": "string" }, "timestamp": { "type": "string", "format": "date-time" } }
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    }
+  }
+}

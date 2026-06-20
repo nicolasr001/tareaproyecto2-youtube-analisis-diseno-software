@@ -1,0 +1,494 @@
+{
+  "openapi": "3.0.4",
+  "info": {
+    "title": "BC4 - Audiencia, Comunidad y Engagement",
+    "description": "Responsabilidad central: gestionar la relacion social entre usuarios, creadores y contenido.\n\nEste contexto trata al usuario como CommunityMember (miembro de comunidad) y al video como EngagementTarget (unidad que recibe likes, comentarios, reacciones), NUNCA como archivo tecnico ni como producto editorial completo. 'Suscripcion' aqui es relacion social (seguir un canal), NO suscripcion de pago (eso vive en Monetizacion BC5).\n\nAlcance (Si): suscripciones, likes, comentarios, notificaciones, historial personal, community posts.\nAlcance (No): ranking del home (eso es Descubrimiento), metadata editorial, transcoding, pagos.\n\nRestriccion de diseno clave: debe validar que el contenido/canal referenciado exista, pero NO duplicar metadata editorial completa (solo guarda el itemId/channelId como referencia).\n\nEventos que EMITE: UserSubscribed, UserUnsubscribed, CommentPosted, CommentDeleted, ReactionRegistered, EngagementSignalAggregated (consumido por Descubrimiento).\nEventos que CONSUME: ItemPublished (para notificar suscriptores), ItemUnpublished/ItemRestricted (para ocultar interacciones).\n\nRequisitos funcionales cubiertos: RF-A1 (suscripciones), RF-A2 (reacciones), RF-A3 (comentarios), RF-A4 (notificaciones), RF-A5 (historial y listas), RF-A6 (comunidad del canal).",
+    "version": "1.0.0",
+    "contact": { "name": "Equipo BC4 - Audiencia", "email": "bc4-audiencia@proyecto-youtube.uoh.cl" }
+  },
+  "servers": [
+    { "url": "https://api.youtube-ddd.local/audiencia/v1", "description": "Servidor del Bounded Context Audiencia, Comunidad y Engagement" }
+  ],
+  "tags": [
+    { "name": "subscriptions", "description": "RF-A1: Suscripciones (relacion social)" },
+    { "name": "reactions", "description": "RF-A2: Reacciones" },
+    { "name": "comments", "description": "RF-A3: Comentarios" },
+    { "name": "notifications", "description": "RF-A4: Notificaciones" },
+    { "name": "history", "description": "RF-A5: Historial y listas personales" },
+    { "name": "community", "description": "RF-A6: Comunidad del canal" }
+  ],
+  "paths": {
+    "/subscriptions": {
+      "post": {
+        "tags": ["subscriptions"],
+        "summary": "Seguir un canal.",
+        "description": "RF-A1: El sistema debe permitir que un usuario siga un canal. Emite evento UserSubscribed.",
+        "operationId": "subscribeToChannel",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SubscribeRequest" },
+              "example": { "userId": "usr-44aa21", "channelId": "chn-55ee10" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Suscripcion creada.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Subscription" } } } },
+          "409": { "description": "El usuario ya sigue ese canal." }
+        },
+        "security": [{ "bearerAuth": ["viewer"] }]
+      }
+    },
+    "/subscriptions/{subscriptionId}": {
+      "delete": {
+        "tags": ["subscriptions"],
+        "summary": "Dejar de seguir un canal.",
+        "description": "RF-A1: El sistema debe permitir dejar de seguir un canal. Emite evento UserUnsubscribed.",
+        "operationId": "unsubscribeFromChannel",
+        "parameters": [{ "name": "subscriptionId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "204": { "description": "Suscripcion eliminada." } },
+        "security": [{ "bearerAuth": ["viewer"] }]
+      }
+    },
+    "/users/{userId}/subscriptions": {
+      "get": {
+        "tags": ["subscriptions"],
+        "summary": "Listar canales seguidos por un usuario.",
+        "description": "RF-A1: El sistema debe permitir listar los canales seguidos por un usuario.",
+        "operationId": "listUserSubscriptions",
+        "parameters": [
+          { "name": "userId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/PageParam" },
+          { "$ref": "#/components/parameters/PageSizeParam" }
+        ],
+        "responses": {
+          "200": { "description": "Lista paginada de canales seguidos.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SubscriptionListResponse" } } } }
+        },
+        "security": [{ "bearerAuth": ["viewer"] }]
+      }
+    },
+    "/channels/{channelId}/subscribers-count": {
+      "get": {
+        "tags": ["subscriptions"],
+        "summary": "Consultar conteo de suscriptores.",
+        "description": "RF-A1: El sistema debe mantener y exponer el conteo de suscriptores de un canal.",
+        "operationId": "getSubscribersCount",
+        "parameters": [{ "name": "channelId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": {
+            "description": "Conteo de suscriptores.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SubscribersCountResponse" }, "example": { "channelId": "chn-55ee10", "subscribersCount": 18420 } } }
+          }
+        }
+      }
+    },
+    "/reactions": {
+      "post": {
+        "tags": ["reactions"],
+        "summary": "Expresar reaccion a un contenido.",
+        "description": "RF-A2: El sistema debe permitir expresar reaccion a un contenido (like, dislike u otro mecanismo definido).",
+        "operationId": "createReaction",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateReactionRequest" },
+              "example": { "userId": "usr-44aa21", "targetId": "itm-30bf77", "type": "LIKE" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Reaccion registrada. Emite evento ReactionRegistered.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Reaction" } } } }
+        },
+        "security": [{ "bearerAuth": ["viewer"] }]
+      }
+    },
+    "/reactions/{reactionId}": {
+      "patch": {
+        "tags": ["reactions"],
+        "summary": "Cambiar una reaccion previa.",
+        "description": "RF-A2: El sistema debe permitir cambiar o eliminar una reaccion previa.",
+        "operationId": "updateReaction",
+        "parameters": [{ "name": "reactionId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateReactionRequest" } } } },
+        "responses": { "200": { "description": "Reaccion actualizada.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Reaction" } } } } },
+        "security": [{ "bearerAuth": ["viewer"] }]
+      },
+      "delete": {
+        "tags": ["reactions"],
+        "summary": "Eliminar una reaccion previa.",
+        "operationId": "deleteReaction",
+        "parameters": [{ "name": "reactionId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "204": { "description": "Reaccion eliminada." } },
+        "security": [{ "bearerAuth": ["viewer"] }]
+      }
+    },
+    "/targets/{targetId}/reactions-summary": {
+      "get": {
+        "tags": ["reactions"],
+        "summary": "Totales agregados de reacciones.",
+        "description": "RF-A2: El sistema debe exponer totales agregados de reacciones por contenido (EngagementTarget).",
+        "operationId": "getReactionsSummary",
+        "parameters": [{ "name": "targetId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": {
+            "description": "Totales agregados.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReactionsSummary" }, "example": { "targetId": "itm-30bf77", "likeCount": 5230, "dislikeCount": 41 } } }
+          }
+        }
+      }
+    },
+    "/comments": {
+      "post": {
+        "tags": ["comments"],
+        "summary": "Publicar un comentario.",
+        "description": "RF-A3: El sistema debe permitir publicar comentarios en un contenido y responder a un comentario (threads). Emite evento CommentPosted.",
+        "operationId": "postComment",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateCommentRequest" },
+              "example": { "userId": "usr-44aa21", "targetId": "itm-30bf77", "text": "Excelente explicacion de DDD!", "parentCommentId": null }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Comentario publicado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Comment" } } } }
+        },
+        "security": [{ "bearerAuth": ["viewer"] }]
+      }
+    },
+    "/targets/{targetId}/comments": {
+      "get": {
+        "tags": ["comments"],
+        "summary": "Listar comentarios con orden configurable.",
+        "description": "RF-A3: El sistema debe permitir listar comentarios con orden configurable (recientes, top, etc.).",
+        "operationId": "listComments",
+        "parameters": [
+          { "name": "targetId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "sortBy", "in": "query", "schema": { "type": "string", "enum": ["RECENT", "TOP"], "default": "TOP" } },
+          { "$ref": "#/components/parameters/PageParam" },
+          { "$ref": "#/components/parameters/PageSizeParam" }
+        ],
+        "responses": {
+          "200": { "description": "Lista paginada de comentarios.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CommentListResponse" } } } }
+        }
+      }
+    },
+    "/comments/{commentId}": {
+      "patch": {
+        "tags": ["comments"],
+        "summary": "Editar un comentario propio.",
+        "description": "RF-A3: El sistema debe permitir al autor editar o eliminar su comentario.",
+        "operationId": "editComment",
+        "parameters": [{ "name": "commentId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EditCommentRequest" } } } },
+        "responses": { "200": { "description": "Comentario editado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Comment" } } } } },
+        "security": [{ "bearerAuth": ["viewer"] }]
+      },
+      "delete": {
+        "tags": ["comments"],
+        "summary": "Eliminar un comentario propio.",
+        "operationId": "deleteComment",
+        "parameters": [{ "name": "commentId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "204": { "description": "Comentario eliminado. Emite evento CommentDeleted." } },
+        "security": [{ "bearerAuth": ["viewer"] }]
+      }
+    },
+    "/comments/{commentId}/pin": {
+      "post": {
+        "tags": ["comments"],
+        "summary": "Fijar un comentario destacado.",
+        "description": "RF-A3: El sistema debe permitir al creador fijar un comentario destacado.",
+        "operationId": "pinComment",
+        "parameters": [{ "name": "commentId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Comentario fijado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Comment" } } } } },
+        "security": [{ "bearerAuth": ["creator"] }]
+      }
+    },
+    "/comments/{commentId}/report": {
+      "post": {
+        "tags": ["comments"],
+        "summary": "Reportar un comentario inapropiado.",
+        "description": "RF-A3: El sistema debe permitir reportar comentarios inapropiados.",
+        "operationId": "reportComment",
+        "parameters": [{ "name": "commentId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReportCommentRequest" }, "example": { "reason": "SPAM" } } } },
+        "responses": { "201": { "description": "Reporte registrado." } },
+        "security": [{ "bearerAuth": ["viewer"] }]
+      }
+    },
+    "/notifications": {
+      "get": {
+        "tags": ["notifications"],
+        "summary": "Listar notificaciones de un usuario.",
+        "description": "RF-A4: El sistema debe permitir listar notificaciones de un usuario.",
+        "operationId": "listNotifications",
+        "parameters": [
+          { "name": "userId", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/PageParam" },
+          { "$ref": "#/components/parameters/PageSizeParam" }
+        ],
+        "responses": {
+          "200": { "description": "Lista paginada de notificaciones.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/NotificationListResponse" } } } }
+        },
+        "security": [{ "bearerAuth": ["viewer"] }]
+      }
+    },
+    "/notifications/{notificationId}/read": {
+      "post": {
+        "tags": ["notifications"],
+        "summary": "Marcar notificacion como leida.",
+        "description": "RF-A4: El sistema debe permitir marcar como leidas las notificaciones.",
+        "operationId": "markNotificationRead",
+        "parameters": [{ "name": "notificationId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Notificacion marcada como leida." } },
+        "security": [{ "bearerAuth": ["viewer"] }]
+      }
+    },
+    "/users/{userId}/notification-preferences": {
+      "put": {
+        "tags": ["notifications"],
+        "summary": "Configurar preferencias de notificacion.",
+        "description": "RF-A4: El sistema debe permitir configurar preferencias de notificacion.",
+        "operationId": "setNotificationPreferences",
+        "parameters": [{ "name": "userId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/NotificationPreferences" }, "example": { "newVideoFromSubscription": true, "commentReplies": true } } }
+        },
+        "responses": { "200": { "description": "Preferencias actualizadas." } },
+        "security": [{ "bearerAuth": ["viewer"] }]
+      }
+    },
+    "/users/{userId}/watch-history": {
+      "get": {
+        "tags": ["history"],
+        "summary": "Consultar historial de visualizacion.",
+        "description": "RF-A5: El sistema debe registrar el historial de visualizacion del usuario (que vio y cuando).",
+        "operationId": "getWatchHistory",
+        "parameters": [
+          { "name": "userId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/PageParam" },
+          { "$ref": "#/components/parameters/PageSizeParam" }
+        ],
+        "responses": {
+          "200": { "description": "Historial paginado de visualizacion.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WatchHistoryResponse" } } } }
+        },
+        "security": [{ "bearerAuth": ["viewer"] }]
+      },
+      "delete": {
+        "tags": ["history"],
+        "summary": "Borrar historial por privacidad.",
+        "description": "RF-A5: El sistema debe permitir borrar historial por privacidad.",
+        "operationId": "clearWatchHistory",
+        "parameters": [{ "name": "userId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "204": { "description": "Historial eliminado." } },
+        "security": [{ "bearerAuth": ["viewer"] }]
+      }
+    },
+    "/users/{userId}/watch-later": {
+      "post": {
+        "tags": ["history"],
+        "summary": "Guardar contenido para ver despues.",
+        "description": "RF-A5: El sistema debe permitir guardar contenido para ver despues.",
+        "operationId": "addToWatchLater",
+        "parameters": [{ "name": "userId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WatchLaterRequest" }, "example": { "targetId": "itm-30bf77" } } } },
+        "responses": { "201": { "description": "Item guardado en watch later." } },
+        "security": [{ "bearerAuth": ["viewer"] }]
+      }
+    },
+    "/channels/{channelId}/community-posts": {
+      "post": {
+        "tags": ["community"],
+        "summary": "Publicar post de comunidad.",
+        "description": "RF-A6: El sistema debe permitir al creador publicar posts de comunidad (texto, encuestas, imagenes) independientes de un video.",
+        "operationId": "createCommunityPost",
+        "parameters": [{ "name": "channelId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateCommunityPostRequest" },
+              "example": { "type": "TEXT", "content": "Proximo video: patrones de diseno avanzados!" }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Post de comunidad creado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CommunityPost" } } } } },
+        "security": [{ "bearerAuth": ["creator"] }]
+      },
+      "get": {
+        "tags": ["community"],
+        "summary": "Listar posts de comunidad de un canal.",
+        "operationId": "listCommunityPosts",
+        "parameters": [{ "name": "channelId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Lista de posts.", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/CommunityPost" } } } } } }
+      }
+    },
+    "/community-posts/{postId}/interactions": {
+      "post": {
+        "tags": ["community"],
+        "summary": "Interactuar con un post de comunidad.",
+        "description": "RF-A6: El sistema debe permitir a los usuarios interactuar con esos posts (comentar, reaccionar).",
+        "operationId": "interactWithCommunityPost",
+        "parameters": [{ "name": "postId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CommunityPostInteractionRequest" }, "example": { "userId": "usr-44aa21", "type": "REACTION", "value": "LIKE" } } }
+        },
+        "responses": { "201": { "description": "Interaccion registrada." } },
+        "security": [{ "bearerAuth": ["viewer"] }]
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "PageParam": { "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1, "default": 1 } },
+      "PageSizeParam": { "name": "pageSize", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 } }
+    },
+    "schemas": {
+      "SubscribeRequest": {
+        "type": "object",
+        "required": ["userId", "channelId"],
+        "properties": { "userId": { "type": "string" }, "channelId": { "type": "string" } }
+      },
+      "Subscription": {
+        "type": "object",
+        "description": "Entidad de este Bounded Context. 'Suscripcion' = relacion social, NO suscripcion de pago.",
+        "properties": {
+          "subscriptionId": { "type": "string" },
+          "userId": { "type": "string" },
+          "channelId": { "type": "string" },
+          "subscribedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "SubscriptionListResponse": {
+        "type": "object",
+        "properties": { "items": { "type": "array", "items": { "$ref": "#/components/schemas/Subscription" } }, "page": { "type": "integer" }, "totalItems": { "type": "integer" } }
+      },
+      "SubscribersCountResponse": {
+        "type": "object",
+        "properties": { "channelId": { "type": "string" }, "subscribersCount": { "type": "integer" } }
+      },
+      "CreateReactionRequest": {
+        "type": "object",
+        "required": ["userId", "targetId", "type"],
+        "properties": {
+          "userId": { "type": "string" },
+          "targetId": { "type": "string", "description": "Referencia a un EngagementTarget (itemId de Catalogo, no se duplica metadata)." },
+          "type": { "type": "string", "enum": ["LIKE", "DISLIKE"] }
+        }
+      },
+      "UpdateReactionRequest": {
+        "type": "object",
+        "properties": { "type": { "type": "string", "enum": ["LIKE", "DISLIKE"] } }
+      },
+      "Reaction": {
+        "type": "object",
+        "properties": { "reactionId": { "type": "string" }, "userId": { "type": "string" }, "targetId": { "type": "string" }, "type": { "type": "string" } }
+      },
+      "ReactionsSummary": {
+        "type": "object",
+        "properties": { "targetId": { "type": "string" }, "likeCount": { "type": "integer" }, "dislikeCount": { "type": "integer" } }
+      },
+      "CreateCommentRequest": {
+        "type": "object",
+        "required": ["userId", "targetId", "text"],
+        "properties": {
+          "userId": { "type": "string" },
+          "targetId": { "type": "string" },
+          "text": { "type": "string" },
+          "parentCommentId": { "type": "string", "nullable": true, "description": "Si se informa, el comentario es una respuesta (thread)." }
+        }
+      },
+      "EditCommentRequest": {
+        "type": "object",
+        "required": ["text"],
+        "properties": { "text": { "type": "string" } }
+      },
+      "Comment": {
+        "type": "object",
+        "description": "Aggregate Root de este Bounded Context. Cardinalidad: 1 EngagementTarget -- 0..* Comment; 1 Comment -- 0..* Comment (replies).",
+        "properties": {
+          "commentId": { "type": "string" },
+          "userId": { "type": "string" },
+          "targetId": { "type": "string" },
+          "text": { "type": "string" },
+          "parentCommentId": { "type": "string", "nullable": true },
+          "isPinned": { "type": "boolean" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CommentListResponse": {
+        "type": "object",
+        "properties": { "items": { "type": "array", "items": { "$ref": "#/components/schemas/Comment" } }, "page": { "type": "integer" }, "totalItems": { "type": "integer" } }
+      },
+      "ReportCommentRequest": {
+        "type": "object",
+        "required": ["reason"],
+        "properties": { "reason": { "type": "string", "enum": ["SPAM", "HARASSMENT", "OTHER"] } }
+      },
+      "NotificationListResponse": {
+        "type": "object",
+        "properties": { "items": { "type": "array", "items": { "$ref": "#/components/schemas/Notification" } }, "page": { "type": "integer" }, "totalItems": { "type": "integer" } }
+      },
+      "Notification": {
+        "type": "object",
+        "properties": {
+          "notificationId": { "type": "string" },
+          "userId": { "type": "string" },
+          "type": { "type": "string", "enum": ["NEW_VIDEO", "COMMENT_REPLY", "MENTION"] },
+          "isRead": { "type": "boolean" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "NotificationPreferences": {
+        "type": "object",
+        "properties": { "newVideoFromSubscription": { "type": "boolean" }, "commentReplies": { "type": "boolean" } }
+      },
+      "WatchHistoryResponse": {
+        "type": "object",
+        "properties": { "items": { "type": "array", "items": { "$ref": "#/components/schemas/WatchHistoryEntry" } }, "page": { "type": "integer" }, "totalItems": { "type": "integer" } }
+      },
+      "WatchHistoryEntry": {
+        "type": "object",
+        "properties": { "targetId": { "type": "string" }, "watchedAt": { "type": "string", "format": "date-time" } }
+      },
+      "WatchLaterRequest": {
+        "type": "object",
+        "required": ["targetId"],
+        "properties": { "targetId": { "type": "string" } }
+      },
+      "CreateCommunityPostRequest": {
+        "type": "object",
+        "required": ["type", "content"],
+        "properties": { "type": { "type": "string", "enum": ["TEXT", "POLL", "IMAGE"] }, "content": { "type": "string" } }
+      },
+      "CommunityPost": {
+        "type": "object",
+        "properties": {
+          "postId": { "type": "string" },
+          "channelId": { "type": "string" },
+          "type": { "type": "string" },
+          "content": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CommunityPostInteractionRequest": {
+        "type": "object",
+        "required": ["userId", "type"],
+        "properties": { "userId": { "type": "string" }, "type": { "type": "string", "enum": ["COMMENT", "REACTION"] }, "value": { "type": "string" } }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": { "code": { "type": "string" }, "message": { "type": "string" }, "timestamp": { "type": "string", "format": "date-time" } }
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    }
+  }
+}
