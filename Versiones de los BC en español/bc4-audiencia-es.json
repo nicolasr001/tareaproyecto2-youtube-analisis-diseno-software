@@ -1,0 +1,494 @@
+{
+  "openapi": "3.0.4",
+  "info": {
+    "title": "BC4 - Audiencia, Comunidad y Engagement",
+    "description": "Responsabilidad central: gestionar la relacion social entre usuarios, creadores y contenido.\n\nEste contexto trata al usuario como MiembroComunidad y al video como ObjetivoEngagement (unidad que recibe likes, comentarios, reacciones), NUNCA como archivo tecnico ni como producto editorial completo. 'Suscripcion' aqui es relacion social (seguir un canal), NO suscripcion de pago (eso vive en Monetizacion BC5).\n\nAlcance (Si): suscripciones, likes, comentarios, notificaciones, historial personal, posts de comunidad.\nAlcance (No): ranking del home (eso es Descubrimiento), metadata editorial, transcodificacion, pagos.\n\nRestriccion de diseno clave: debe validar que el contenido/canal referenciado exista, pero NO duplicar metadata editorial completa (solo guarda el idItem/idCanal como referencia).\n\nEventos que EMITE: UsuarioSuscrito, UsuarioDesuscrito, ComentarioPublicado, ComentarioEliminado, ReaccionRegistrada, SenalEngagementAgregada (consumido por Descubrimiento).\nEventos que CONSUME: ItemPublicado (para notificar suscriptores), ItemDespublicado/ItemRestringido (para ocultar interacciones).\n\nRequisitos funcionales cubiertos: RF-A1 (suscripciones), RF-A2 (reacciones), RF-A3 (comentarios), RF-A4 (notificaciones), RF-A5 (historial y listas), RF-A6 (comunidad del canal).",
+    "version": "1.0.0",
+    "contact": { "name": "Equipo BC4 - Audiencia", "email": "bc4-audiencia@proyecto-youtube.uoh.cl" }
+  },
+  "servers": [
+    { "url": "https://api.youtube-ddd.local/audiencia/v1", "description": "Servidor del Bounded Context Audiencia, Comunidad y Engagement" }
+  ],
+  "tags": [
+    { "name": "suscripciones", "description": "RF-A1: Suscripciones (relacion social)" },
+    { "name": "reacciones", "description": "RF-A2: Reacciones" },
+    { "name": "comentarios", "description": "RF-A3: Comentarios" },
+    { "name": "notificaciones", "description": "RF-A4: Notificaciones" },
+    { "name": "historial", "description": "RF-A5: Historial y listas personales" },
+    { "name": "comunidad", "description": "RF-A6: Comunidad del canal" }
+  ],
+  "paths": {
+    "/suscripciones": {
+      "post": {
+        "tags": ["suscripciones"],
+        "summary": "Seguir un canal.",
+        "description": "RF-A1: El sistema debe permitir que un usuario siga un canal. Emite evento UsuarioSuscrito.",
+        "operationId": "suscribirseACanal",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SolicitudSuscripcion" },
+              "example": { "idUsuario": "usr-44aa21", "idCanal": "can-55ee10" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Suscripcion creada.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Suscripcion" } } } },
+          "409": { "description": "El usuario ya sigue ese canal." }
+        },
+        "security": [{ "autenticacionBearer": ["espectador"] }]
+      }
+    },
+    "/suscripciones/{idSuscripcion}": {
+      "delete": {
+        "tags": ["suscripciones"],
+        "summary": "Dejar de seguir un canal.",
+        "description": "RF-A1: El sistema debe permitir dejar de seguir un canal. Emite evento UsuarioDesuscrito.",
+        "operationId": "desuscribirseDeCanal",
+        "parameters": [{ "name": "idSuscripcion", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "204": { "description": "Suscripcion eliminada." } },
+        "security": [{ "autenticacionBearer": ["espectador"] }]
+      }
+    },
+    "/usuarios/{idUsuario}/suscripciones": {
+      "get": {
+        "tags": ["suscripciones"],
+        "summary": "Listar canales seguidos por un usuario.",
+        "description": "RF-A1: El sistema debe permitir listar los canales seguidos por un usuario.",
+        "operationId": "listarSuscripcionesUsuario",
+        "parameters": [
+          { "name": "idUsuario", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/ParametroPagina" },
+          { "$ref": "#/components/parameters/ParametroTamanoPagina" }
+        ],
+        "responses": {
+          "200": { "description": "Lista paginada de canales seguidos.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RespuestaListaSuscripciones" } } } }
+        },
+        "security": [{ "autenticacionBearer": ["espectador"] }]
+      }
+    },
+    "/canales/{idCanal}/conteo-suscriptores": {
+      "get": {
+        "tags": ["suscripciones"],
+        "summary": "Consultar conteo de suscriptores.",
+        "description": "RF-A1: El sistema debe mantener y exponer el conteo de suscriptores de un canal.",
+        "operationId": "obtenerConteoSuscriptores",
+        "parameters": [{ "name": "idCanal", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": {
+            "description": "Conteo de suscriptores.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RespuestaConteoSuscriptores" }, "example": { "idCanal": "can-55ee10", "totalSuscriptores": 18420 } } }
+          }
+        }
+      }
+    },
+    "/reacciones": {
+      "post": {
+        "tags": ["reacciones"],
+        "summary": "Expresar reaccion a un contenido.",
+        "description": "RF-A2: El sistema debe permitir expresar reaccion a un contenido (like, dislike u otro mecanismo definido).",
+        "operationId": "crearReaccion",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SolicitudCrearReaccion" },
+              "example": { "idUsuario": "usr-44aa21", "idObjetivo": "itm-30bf77", "tipo": "LIKE" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Reaccion registrada. Emite evento ReaccionRegistrada.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Reaccion" } } } }
+        },
+        "security": [{ "autenticacionBearer": ["espectador"] }]
+      }
+    },
+    "/reacciones/{idReaccion}": {
+      "patch": {
+        "tags": ["reacciones"],
+        "summary": "Cambiar una reaccion previa.",
+        "description": "RF-A2: El sistema debe permitir cambiar o eliminar una reaccion previa.",
+        "operationId": "actualizarReaccion",
+        "parameters": [{ "name": "idReaccion", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SolicitudActualizarReaccion" } } } },
+        "responses": { "200": { "description": "Reaccion actualizada.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Reaccion" } } } } },
+        "security": [{ "autenticacionBearer": ["espectador"] }]
+      },
+      "delete": {
+        "tags": ["reacciones"],
+        "summary": "Eliminar una reaccion previa.",
+        "operationId": "eliminarReaccion",
+        "parameters": [{ "name": "idReaccion", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "204": { "description": "Reaccion eliminada." } },
+        "security": [{ "autenticacionBearer": ["espectador"] }]
+      }
+    },
+    "/objetivos/{idObjetivo}/resumen-reacciones": {
+      "get": {
+        "tags": ["reacciones"],
+        "summary": "Totales agregados de reacciones.",
+        "description": "RF-A2: El sistema debe exponer totales agregados de reacciones por contenido (ObjetivoEngagement).",
+        "operationId": "obtenerResumenReacciones",
+        "parameters": [{ "name": "idObjetivo", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": {
+            "description": "Totales agregados.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResumenReacciones" }, "example": { "idObjetivo": "itm-30bf77", "totalLikes": 5230, "totalDislikes": 41 } } }
+          }
+        }
+      }
+    },
+    "/comentarios": {
+      "post": {
+        "tags": ["comentarios"],
+        "summary": "Publicar un comentario.",
+        "description": "RF-A3: El sistema debe permitir publicar comentarios en un contenido y responder a un comentario (hilos). Emite evento ComentarioPublicado.",
+        "operationId": "publicarComentario",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SolicitudCrearComentario" },
+              "example": { "idUsuario": "usr-44aa21", "idObjetivo": "itm-30bf77", "texto": "Excelente explicacion de DDD!", "idComentarioPadre": null }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Comentario publicado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Comentario" } } } }
+        },
+        "security": [{ "autenticacionBearer": ["espectador"] }]
+      }
+    },
+    "/objetivos/{idObjetivo}/comentarios": {
+      "get": {
+        "tags": ["comentarios"],
+        "summary": "Listar comentarios con orden configurable.",
+        "description": "RF-A3: El sistema debe permitir listar comentarios con orden configurable (recientes, destacados, etc.).",
+        "operationId": "listarComentarios",
+        "parameters": [
+          { "name": "idObjetivo", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "ordenarPor", "in": "query", "schema": { "type": "string", "enum": ["RECIENTES", "DESTACADOS"], "default": "DESTACADOS" } },
+          { "$ref": "#/components/parameters/ParametroPagina" },
+          { "$ref": "#/components/parameters/ParametroTamanoPagina" }
+        ],
+        "responses": {
+          "200": { "description": "Lista paginada de comentarios.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RespuestaListaComentarios" } } } }
+        }
+      }
+    },
+    "/comentarios/{idComentario}": {
+      "patch": {
+        "tags": ["comentarios"],
+        "summary": "Editar un comentario propio.",
+        "description": "RF-A3: El sistema debe permitir al autor editar o eliminar su comentario.",
+        "operationId": "editarComentario",
+        "parameters": [{ "name": "idComentario", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SolicitudEditarComentario" } } } },
+        "responses": { "200": { "description": "Comentario editado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Comentario" } } } } },
+        "security": [{ "autenticacionBearer": ["espectador"] }]
+      },
+      "delete": {
+        "tags": ["comentarios"],
+        "summary": "Eliminar un comentario propio.",
+        "operationId": "eliminarComentario",
+        "parameters": [{ "name": "idComentario", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "204": { "description": "Comentario eliminado. Emite evento ComentarioEliminado." } },
+        "security": [{ "autenticacionBearer": ["espectador"] }]
+      }
+    },
+    "/comentarios/{idComentario}/fijar": {
+      "post": {
+        "tags": ["comentarios"],
+        "summary": "Fijar un comentario destacado.",
+        "description": "RF-A3: El sistema debe permitir al creador fijar un comentario destacado.",
+        "operationId": "fijarComentario",
+        "parameters": [{ "name": "idComentario", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Comentario fijado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Comentario" } } } } },
+        "security": [{ "autenticacionBearer": ["creador"] }]
+      }
+    },
+    "/comentarios/{idComentario}/reportar": {
+      "post": {
+        "tags": ["comentarios"],
+        "summary": "Reportar un comentario inapropiado.",
+        "description": "RF-A3: El sistema debe permitir reportar comentarios inapropiados.",
+        "operationId": "reportarComentario",
+        "parameters": [{ "name": "idComentario", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SolicitudReportarComentario" }, "example": { "motivo": "SPAM" } } } },
+        "responses": { "201": { "description": "Reporte registrado." } },
+        "security": [{ "autenticacionBearer": ["espectador"] }]
+      }
+    },
+    "/notificaciones": {
+      "get": {
+        "tags": ["notificaciones"],
+        "summary": "Listar notificaciones de un usuario.",
+        "description": "RF-A4: El sistema debe permitir listar notificaciones de un usuario.",
+        "operationId": "listarNotificaciones",
+        "parameters": [
+          { "name": "idUsuario", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/ParametroPagina" },
+          { "$ref": "#/components/parameters/ParametroTamanoPagina" }
+        ],
+        "responses": {
+          "200": { "description": "Lista paginada de notificaciones.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RespuestaListaNotificaciones" } } } }
+        },
+        "security": [{ "autenticacionBearer": ["espectador"] }]
+      }
+    },
+    "/notificaciones/{idNotificacion}/leer": {
+      "post": {
+        "tags": ["notificaciones"],
+        "summary": "Marcar notificacion como leida.",
+        "description": "RF-A4: El sistema debe permitir marcar como leidas las notificaciones.",
+        "operationId": "marcarNotificacionLeida",
+        "parameters": [{ "name": "idNotificacion", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Notificacion marcada como leida." } },
+        "security": [{ "autenticacionBearer": ["espectador"] }]
+      }
+    },
+    "/usuarios/{idUsuario}/preferencias-notificacion": {
+      "put": {
+        "tags": ["notificaciones"],
+        "summary": "Configurar preferencias de notificacion.",
+        "description": "RF-A4: El sistema debe permitir configurar preferencias de notificacion.",
+        "operationId": "configurarPreferenciasNotificacion",
+        "parameters": [{ "name": "idUsuario", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PreferenciasNotificacion" }, "example": { "nuevoVideoDeSuscripcion": true, "respuestasComentarios": true } } }
+        },
+        "responses": { "200": { "description": "Preferencias actualizadas." } },
+        "security": [{ "autenticacionBearer": ["espectador"] }]
+      }
+    },
+    "/usuarios/{idUsuario}/historial-visualizacion": {
+      "get": {
+        "tags": ["historial"],
+        "summary": "Consultar historial de visualizacion.",
+        "description": "RF-A5: El sistema debe registrar el historial de visualizacion del usuario (que vio y cuando).",
+        "operationId": "obtenerHistorialVisualizacion",
+        "parameters": [
+          { "name": "idUsuario", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/ParametroPagina" },
+          { "$ref": "#/components/parameters/ParametroTamanoPagina" }
+        ],
+        "responses": {
+          "200": { "description": "Historial paginado de visualizacion.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RespuestaHistorialVisualizacion" } } } }
+        },
+        "security": [{ "autenticacionBearer": ["espectador"] }]
+      },
+      "delete": {
+        "tags": ["historial"],
+        "summary": "Borrar historial por privacidad.",
+        "description": "RF-A5: El sistema debe permitir borrar historial por privacidad.",
+        "operationId": "borrarHistorialVisualizacion",
+        "parameters": [{ "name": "idUsuario", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "204": { "description": "Historial eliminado." } },
+        "security": [{ "autenticacionBearer": ["espectador"] }]
+      }
+    },
+    "/usuarios/{idUsuario}/ver-mas-tarde": {
+      "post": {
+        "tags": ["historial"],
+        "summary": "Guardar contenido para ver despues.",
+        "description": "RF-A5: El sistema debe permitir guardar contenido para ver despues.",
+        "operationId": "agregarVerMasTarde",
+        "parameters": [{ "name": "idUsuario", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SolicitudVerMasTarde" }, "example": { "idObjetivo": "itm-30bf77" } } } },
+        "responses": { "201": { "description": "Item guardado en ver mas tarde." } },
+        "security": [{ "autenticacionBearer": ["espectador"] }]
+      }
+    },
+    "/canales/{idCanal}/posts-comunidad": {
+      "post": {
+        "tags": ["comunidad"],
+        "summary": "Publicar post de comunidad.",
+        "description": "RF-A6: El sistema debe permitir al creador publicar posts de comunidad (texto, encuestas, imagenes) independientes de un video.",
+        "operationId": "crearPostComunidad",
+        "parameters": [{ "name": "idCanal", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SolicitudCrearPostComunidad" },
+              "example": { "tipo": "TEXTO", "contenido": "Proximo video: patrones de diseno avanzados!" }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Post de comunidad creado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PostComunidad" } } } } },
+        "security": [{ "autenticacionBearer": ["creador"] }]
+      },
+      "get": {
+        "tags": ["comunidad"],
+        "summary": "Listar posts de comunidad de un canal.",
+        "operationId": "listarPostsComunidad",
+        "parameters": [{ "name": "idCanal", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Lista de posts.", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/PostComunidad" } } } } } }
+      }
+    },
+    "/posts-comunidad/{idPost}/interacciones": {
+      "post": {
+        "tags": ["comunidad"],
+        "summary": "Interactuar con un post de comunidad.",
+        "description": "RF-A6: El sistema debe permitir a los usuarios interactuar con esos posts (comentar, reaccionar).",
+        "operationId": "interactuarConPostComunidad",
+        "parameters": [{ "name": "idPost", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SolicitudInteraccionPostComunidad" }, "example": { "idUsuario": "usr-44aa21", "tipo": "REACCION", "valor": "LIKE" } } }
+        },
+        "responses": { "201": { "description": "Interaccion registrada." } },
+        "security": [{ "autenticacionBearer": ["espectador"] }]
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "ParametroPagina": { "name": "pagina", "in": "query", "schema": { "type": "integer", "minimum": 1, "default": 1 } },
+      "ParametroTamanoPagina": { "name": "tamanoPagina", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 } }
+    },
+    "schemas": {
+      "SolicitudSuscripcion": {
+        "type": "object",
+        "required": ["idUsuario", "idCanal"],
+        "properties": { "idUsuario": { "type": "string" }, "idCanal": { "type": "string" } }
+      },
+      "Suscripcion": {
+        "type": "object",
+        "description": "Entidad de este Bounded Context. 'Suscripcion' = relacion social, NO suscripcion de pago.",
+        "properties": {
+          "idSuscripcion": { "type": "string" },
+          "idUsuario": { "type": "string" },
+          "idCanal": { "type": "string" },
+          "suscritoEn": { "type": "string", "format": "date-time" }
+        }
+      },
+      "RespuestaListaSuscripciones": {
+        "type": "object",
+        "properties": { "items": { "type": "array", "items": { "$ref": "#/components/schemas/Suscripcion" } }, "pagina": { "type": "integer" }, "totalItems": { "type": "integer" } }
+      },
+      "RespuestaConteoSuscriptores": {
+        "type": "object",
+        "properties": { "idCanal": { "type": "string" }, "totalSuscriptores": { "type": "integer" } }
+      },
+      "SolicitudCrearReaccion": {
+        "type": "object",
+        "required": ["idUsuario", "idObjetivo", "tipo"],
+        "properties": {
+          "idUsuario": { "type": "string" },
+          "idObjetivo": { "type": "string", "description": "Referencia a un ObjetivoEngagement (idItem de Catalogo, no se duplica metadata)." },
+          "tipo": { "type": "string", "enum": ["LIKE", "DISLIKE"] }
+        }
+      },
+      "SolicitudActualizarReaccion": {
+        "type": "object",
+        "properties": { "tipo": { "type": "string", "enum": ["LIKE", "DISLIKE"] } }
+      },
+      "Reaccion": {
+        "type": "object",
+        "properties": { "idReaccion": { "type": "string" }, "idUsuario": { "type": "string" }, "idObjetivo": { "type": "string" }, "tipo": { "type": "string" } }
+      },
+      "ResumenReacciones": {
+        "type": "object",
+        "properties": { "idObjetivo": { "type": "string" }, "totalLikes": { "type": "integer" }, "totalDislikes": { "type": "integer" } }
+      },
+      "SolicitudCrearComentario": {
+        "type": "object",
+        "required": ["idUsuario", "idObjetivo", "texto"],
+        "properties": {
+          "idUsuario": { "type": "string" },
+          "idObjetivo": { "type": "string" },
+          "texto": { "type": "string" },
+          "idComentarioPadre": { "type": "string", "nullable": true, "description": "Si se informa, el comentario es una respuesta (hilo)." }
+        }
+      },
+      "SolicitudEditarComentario": {
+        "type": "object",
+        "required": ["texto"],
+        "properties": { "texto": { "type": "string" } }
+      },
+      "Comentario": {
+        "type": "object",
+        "description": "Raiz del Agregado (Aggregate Root) de este Bounded Context. Cardinalidad: 1 ObjetivoEngagement -- 0..* Comentario; 1 Comentario -- 0..* Comentario (respuestas).",
+        "properties": {
+          "idComentario": { "type": "string" },
+          "idUsuario": { "type": "string" },
+          "idObjetivo": { "type": "string" },
+          "texto": { "type": "string" },
+          "idComentarioPadre": { "type": "string", "nullable": true },
+          "estaFijado": { "type": "boolean" },
+          "creadoEn": { "type": "string", "format": "date-time" }
+        }
+      },
+      "RespuestaListaComentarios": {
+        "type": "object",
+        "properties": { "items": { "type": "array", "items": { "$ref": "#/components/schemas/Comentario" } }, "pagina": { "type": "integer" }, "totalItems": { "type": "integer" } }
+      },
+      "SolicitudReportarComentario": {
+        "type": "object",
+        "required": ["motivo"],
+        "properties": { "motivo": { "type": "string", "enum": ["SPAM", "ACOSO", "OTRO"] } }
+      },
+      "RespuestaListaNotificaciones": {
+        "type": "object",
+        "properties": { "items": { "type": "array", "items": { "$ref": "#/components/schemas/Notificacion" } }, "pagina": { "type": "integer" }, "totalItems": { "type": "integer" } }
+      },
+      "Notificacion": {
+        "type": "object",
+        "properties": {
+          "idNotificacion": { "type": "string" },
+          "idUsuario": { "type": "string" },
+          "tipo": { "type": "string", "enum": ["NUEVO_VIDEO", "RESPUESTA_COMENTARIO", "MENCION"] },
+          "leida": { "type": "boolean" },
+          "creadaEn": { "type": "string", "format": "date-time" }
+        }
+      },
+      "PreferenciasNotificacion": {
+        "type": "object",
+        "properties": { "nuevoVideoDeSuscripcion": { "type": "boolean" }, "respuestasComentarios": { "type": "boolean" } }
+      },
+      "RespuestaHistorialVisualizacion": {
+        "type": "object",
+        "properties": { "items": { "type": "array", "items": { "$ref": "#/components/schemas/EntradaHistorialVisualizacion" } }, "pagina": { "type": "integer" }, "totalItems": { "type": "integer" } }
+      },
+      "EntradaHistorialVisualizacion": {
+        "type": "object",
+        "properties": { "idObjetivo": { "type": "string" }, "visualizadoEn": { "type": "string", "format": "date-time" } }
+      },
+      "SolicitudVerMasTarde": {
+        "type": "object",
+        "required": ["idObjetivo"],
+        "properties": { "idObjetivo": { "type": "string" } }
+      },
+      "SolicitudCrearPostComunidad": {
+        "type": "object",
+        "required": ["tipo", "contenido"],
+        "properties": { "tipo": { "type": "string", "enum": ["TEXTO", "ENCUESTA", "IMAGEN"] }, "contenido": { "type": "string" } }
+      },
+      "PostComunidad": {
+        "type": "object",
+        "properties": {
+          "idPost": { "type": "string" },
+          "idCanal": { "type": "string" },
+          "tipo": { "type": "string" },
+          "contenido": { "type": "string" },
+          "creadoEn": { "type": "string", "format": "date-time" }
+        }
+      },
+      "SolicitudInteraccionPostComunidad": {
+        "type": "object",
+        "required": ["idUsuario", "tipo"],
+        "properties": { "idUsuario": { "type": "string" }, "tipo": { "type": "string", "enum": ["COMENTARIO", "REACCION"] }, "valor": { "type": "string" } }
+      },
+      "RespuestaError": {
+        "type": "object",
+        "properties": { "codigo": { "type": "string" }, "mensaje": { "type": "string" }, "marcaTiempo": { "type": "string", "format": "date-time" } }
+      }
+    },
+    "securitySchemes": {
+      "autenticacionBearer": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    }
+  }
+}

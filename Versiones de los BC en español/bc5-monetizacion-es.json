@@ -1,0 +1,381 @@
+{
+  "openapi": "3.0.4",
+  "info": {
+    "title": "BC5 - Monetizacion del Ecosistema Creador",
+    "description": "Responsabilidad central: gestionar como los creadores ganan dinero y como se registran, calculan y pagan esos ingresos.\n\nEste contexto trata al video como UnidadMonetizable (fuente de ingresos sujeta a reglas de reparto), NUNCA como archivo tecnico ni como producto editorial. Cobra y paga dentro del ecosistema creador-espectador. NO negocia con anunciantes ni define que anuncio se muestra (eso es Publicidad BC6); solo recibe el evento de ingreso ya confirmado.\n\nAlcance (Si): elegibilidad, reparto de ingresos, membresias de canal, propinas, saldo, retiros, reportes.\nAlcance (No): crear campanas de anunciantes, recomendar videos, procesar video.\n\nError tipico a evitar (segun el profesor): los pagos al creador NUNCA se hacen en Publicidad. Publicidad cobra al anunciante; Monetizacion paga al creador.\n\nEventos que EMITE: MonetizacionHabilitada, MonetizacionDeshabilitada, IngresoAtribuido, PagoProcesado.\nEventos que CONSUME: IngresoPublicitarioConfirmado (desde Publicidad), ItemPublicado/ItemRestringido (desde Catalogo).\n\nRequisitos funcionales cubiertos: RF-M1 (alta y elegibilidad), RF-M2 (productos del creador), RF-M3 (registro de ingresos), RF-M4 (consulta de ganancias), RF-M5 (pagos).",
+    "version": "1.0.0",
+    "contact": { "name": "Equipo BC5 - Monetizacion", "email": "bc5-monetizacion@proyecto-youtube.uoh.cl" }
+  },
+  "servers": [
+    { "url": "https://api.youtube-ddd.local/monetizacion/v1", "description": "Servidor del Bounded Context Monetizacion del Ecosistema Creador" }
+  ],
+  "tags": [
+    { "name": "elegibilidad", "description": "RF-M1: Alta y elegibilidad" },
+    { "name": "productos-creador", "description": "RF-M2: Configuracion de productos del creador" },
+    { "name": "ingresos", "description": "RF-M3: Registro de ingresos" },
+    { "name": "ganancias", "description": "RF-M4: Consulta de ganancias" },
+    { "name": "pagos", "description": "RF-M5: Pagos" }
+  ],
+  "paths": {
+    "/canales/{idCanal}/monetizacion/solicitar": {
+      "post": {
+        "tags": ["elegibilidad"],
+        "summary": "Solicitar monetizar un canal.",
+        "description": "RF-M1: El sistema debe permitir que un creador solicite monetizar su canal, evaluando requisitos de elegibilidad (suscriptores, horas de visualizacion, cumplimiento de politicas).",
+        "operationId": "solicitarMonetizacion",
+        "parameters": [{ "name": "idCanal", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": {
+            "description": "Resultado de la evaluacion de elegibilidad.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ResultadoElegibilidad" },
+                "example": { "idCanal": "can-55ee10", "estado": "PENDIENTE", "totalSuscriptores": 18420, "horasVisualizacionUltimos12Meses": 5200 }
+              }
+            }
+          }
+        },
+        "security": [{ "autenticacionBearer": ["creador"] }]
+      }
+    },
+    "/canales/{idCanal}/monetizacion": {
+      "get": {
+        "tags": ["elegibilidad"],
+        "summary": "Consultar estado de elegibilidad.",
+        "description": "RF-M1: El sistema debe informar el estado de elegibilidad (apto, pendiente, rechazado).",
+        "operationId": "obtenerEstadoMonetizacion",
+        "parameters": [{ "name": "idCanal", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Estado actual de monetizacion.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EstadoMonetizacion" } } } }
+        }
+      },
+      "patch": {
+        "tags": ["elegibilidad"],
+        "summary": "Activar o desactivar monetizacion.",
+        "description": "RF-M1: El sistema debe permitir activar o desactivar monetizacion a nivel canal o contenido. Emite evento MonetizacionHabilitada/MonetizacionDeshabilitada.",
+        "operationId": "alternarMonetizacion",
+        "parameters": [{ "name": "idCanal", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SolicitudAlternarMonetizacion" }, "example": { "habilitado": true, "alcance": "CANAL" } } }
+        },
+        "responses": { "200": { "description": "Estado de monetizacion actualizado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EstadoMonetizacion" } } } } },
+        "security": [{ "autenticacionBearer": ["creador"] }]
+      }
+    },
+    "/canales/{idCanal}/niveles-membresia": {
+      "post": {
+        "tags": ["productos-creador"],
+        "summary": "Definir un nivel de membresia.",
+        "description": "RF-M2: El sistema debe permitir definir niveles de membresia de canal (precio, beneficios).",
+        "operationId": "crearNivelMembresia",
+        "parameters": [{ "name": "idCanal", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SolicitudCrearNivelMembresia" },
+              "example": { "nombre": "Nivel Bronce", "precioUsd": 4.99, "beneficios": ["Emojis exclusivos", "Insignia de miembro"] }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Nivel de membresia creado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/NivelMembresia" } } } } },
+        "security": [{ "autenticacionBearer": ["creador"] }]
+      },
+      "get": {
+        "tags": ["productos-creador"],
+        "summary": "Listar niveles de membresia del canal.",
+        "operationId": "listarNivelesMembresia",
+        "parameters": [{ "name": "idCanal", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Lista de niveles.", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/NivelMembresia" } } } } } }
+      }
+    },
+    "/membresias/compras": {
+      "post": {
+        "tags": ["productos-creador"],
+        "summary": "Registrar compra de membresia.",
+        "description": "RF-M2: El sistema debe registrar cuando un espectador compra una membresia o deja propina.",
+        "operationId": "comprarMembresia",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SolicitudComprarMembresia" },
+              "example": { "idEspectador": "usr-44aa21", "idNivel": "niv-bronce-01" }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Membresia registrada. Genera EventoIngreso." } },
+        "security": [{ "autenticacionBearer": ["espectador"] }]
+      }
+    },
+    "/propinas": {
+      "post": {
+        "tags": ["productos-creador"],
+        "summary": "Registrar una propina.",
+        "description": "RF-M2: El sistema debe permitir gestionar propinas / agradecimientos en videos.",
+        "operationId": "enviarPropina",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SolicitudEnviarPropina" },
+              "example": { "idEspectador": "usr-44aa21", "idUnidadMonetizableObjetivo": "um-30bf77", "montoUsd": 5.00 }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Propina registrada." } },
+        "security": [{ "autenticacionBearer": ["espectador"] }]
+      }
+    },
+    "/eventos-ingreso": {
+      "post": {
+        "tags": ["ingresos"],
+        "summary": "Registrar un evento de ingreso.",
+        "description": "RF-M3: El sistema debe registrar eventos de ingreso asociados a contenido y canal, aceptando ingresos de publicidad, membresias y propinas, y aplicar reparto de ingresos. Este endpoint es invocado normalmente por el manejador del evento IngresoPublicitarioConfirmado desde Publicidad.",
+        "operationId": "crearEventoIngreso",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SolicitudCrearEventoIngreso" },
+              "example": { "idCanal": "can-55ee10", "idUnidadMonetizable": "um-30bf77", "origen": "PUBLICIDAD", "montoBrutoUsd": 12.40 }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Evento de ingreso registrado con reparto aplicado.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/EventoIngreso" },
+                "example": { "idEventoIngreso": "ing-901aa2", "idCanal": "can-55ee10", "origen": "PUBLICIDAD", "montoBrutoUsd": 12.40, "montoCreadorUsd": 6.82, "estado": "PENDIENTE" }
+              }
+            }
+          }
+        },
+        "security": [{ "autenticacionBearer": ["sistema"] }]
+      }
+    },
+    "/eventos-ingreso/{idEventoIngreso}": {
+      "get": {
+        "tags": ["ingresos"],
+        "summary": "Consultar un evento de ingreso.",
+        "description": "RF-M3: El sistema debe mantener ingresos en estados: pendiente, confirmado, pagado.",
+        "operationId": "obtenerEventoIngreso",
+        "parameters": [{ "name": "idEventoIngreso", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Detalle del evento de ingreso.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EventoIngreso" } } } } }
+      }
+    },
+    "/canales/{idCanal}/ganancias": {
+      "get": {
+        "tags": ["ganancias"],
+        "summary": "Consultar ganancias por periodo.",
+        "description": "RF-M4: El sistema debe permitir consultar ganancias por periodo (dia, mes, etc.) con desglose por video, fuente de ingreso y metricas (RPM).",
+        "operationId": "obtenerGanancias",
+        "parameters": [
+          { "name": "idCanal", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "desde", "in": "query", "required": true, "schema": { "type": "string", "format": "date" } },
+          { "name": "hasta", "in": "query", "required": true, "schema": { "type": "string", "format": "date" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reporte de ganancias del periodo.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ReporteGanancias" },
+                "example": { "idCanal": "can-55ee10", "totalGananciasUsd": 1845.30, "rpm": 3.12, "desglose": [{ "idUnidadMonetizable": "um-30bf77", "origen": "PUBLICIDAD", "montoUsd": 920.10 }] }
+              }
+            }
+          }
+        },
+        "security": [{ "autenticacionBearer": ["creador"] }]
+      }
+    },
+    "/canales/{idCanal}/ganancias/exportar": {
+      "get": {
+        "tags": ["ganancias"],
+        "summary": "Generar reporte exportable.",
+        "description": "RF-M4: El sistema debe generar reportes exportables para el creador.",
+        "operationId": "exportarReporteGanancias",
+        "parameters": [
+          { "name": "idCanal", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "formato", "in": "query", "schema": { "type": "string", "enum": ["CSV", "PDF"], "default": "CSV" } }
+        ],
+        "responses": { "200": { "description": "Archivo de reporte generado.", "content": { "application/octet-stream": { "schema": { "type": "string", "format": "binary" } } } } },
+        "security": [{ "autenticacionBearer": ["creador"] }]
+      }
+    },
+    "/canales/{idCanal}/saldo": {
+      "get": {
+        "tags": ["pagos"],
+        "summary": "Consultar saldo disponible.",
+        "description": "RF-M5: El sistema debe mantener el saldo disponible del creador.",
+        "operationId": "obtenerSaldo",
+        "parameters": [{ "name": "idCanal", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Saldo disponible.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Saldo" }, "example": { "idCanal": "can-55ee10", "disponibleUsd": 642.18, "minimoRetiroUsd": 100.00 } } } }
+        },
+        "security": [{ "autenticacionBearer": ["creador"] }]
+      }
+    },
+    "/retiros": {
+      "post": {
+        "tags": ["pagos"],
+        "summary": "Solicitar retiro.",
+        "description": "RF-M5: El sistema debe permitir solicitar retiro cuando se supere el minimo. Emite evento PagoProcesado.",
+        "operationId": "solicitarRetiro",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SolicitudRetiro" }, "example": { "idCanal": "can-55ee10", "montoUsd": 500.00 } } }
+        },
+        "responses": {
+          "201": { "description": "Solicitud de pago creada.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Retiro" } } } },
+          "409": { "description": "Monto solicitado por debajo del minimo de retiro." }
+        },
+        "security": [{ "autenticacionBearer": ["creador"] }]
+      }
+    },
+    "/canales/{idCanal}/retiros": {
+      "get": {
+        "tags": ["pagos"],
+        "summary": "Consultar historial de pagos.",
+        "description": "RF-M5: El sistema debe registrar historial de pagos realizados.",
+        "operationId": "listarRetiros",
+        "parameters": [
+          { "name": "idCanal", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "pagina", "in": "query", "schema": { "type": "integer", "default": 1 } }
+        ],
+        "responses": { "200": { "description": "Historial de pagos.", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Retiro" } } } } } },
+        "security": [{ "autenticacionBearer": ["creador"] }]
+      }
+    },
+    "/canales/{idCanal}/documentos-fiscales": {
+      "post": {
+        "tags": ["pagos"],
+        "summary": "Registrar documentacion fiscal.",
+        "description": "RF-M5: El sistema debe soportar documentacion fiscal requerida para cobrar.",
+        "operationId": "enviarDocumentoFiscal",
+        "parameters": [{ "name": "idCanal", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SolicitudDocumentoFiscal" } } } },
+        "responses": { "201": { "description": "Documento fiscal registrado." } },
+        "security": [{ "autenticacionBearer": ["creador"] }]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ResultadoElegibilidad": {
+        "type": "object",
+        "properties": {
+          "idCanal": { "type": "string" },
+          "estado": { "type": "string", "enum": ["PENDIENTE", "APROBADO", "RECHAZADO"] },
+          "totalSuscriptores": { "type": "integer" },
+          "horasVisualizacionUltimos12Meses": { "type": "integer" }
+        }
+      },
+      "EstadoMonetizacion": {
+        "type": "object",
+        "properties": { "idCanal": { "type": "string" }, "habilitado": { "type": "boolean" }, "alcance": { "type": "string", "enum": ["CANAL", "CONTENIDO"] } }
+      },
+      "SolicitudAlternarMonetizacion": {
+        "type": "object",
+        "required": ["habilitado", "alcance"],
+        "properties": { "habilitado": { "type": "boolean" }, "alcance": { "type": "string", "enum": ["CANAL", "CONTENIDO"] } }
+      },
+      "SolicitudCrearNivelMembresia": {
+        "type": "object",
+        "required": ["nombre", "precioUsd"],
+        "properties": { "nombre": { "type": "string" }, "precioUsd": { "type": "number", "format": "float" }, "beneficios": { "type": "array", "items": { "type": "string" } } }
+      },
+      "NivelMembresia": {
+        "type": "object",
+        "description": "Entidad del agregado CuentaCreador (composicion).",
+        "properties": {
+          "idNivel": { "type": "string" },
+          "idCanal": { "type": "string" },
+          "nombre": { "type": "string" },
+          "precioUsd": { "type": "number" },
+          "beneficios": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "SolicitudComprarMembresia": {
+        "type": "object",
+        "required": ["idEspectador", "idNivel"],
+        "properties": { "idEspectador": { "type": "string" }, "idNivel": { "type": "string" } }
+      },
+      "SolicitudEnviarPropina": {
+        "type": "object",
+        "required": ["idEspectador", "idUnidadMonetizableObjetivo", "montoUsd"],
+        "properties": { "idEspectador": { "type": "string" }, "idUnidadMonetizableObjetivo": { "type": "string" }, "montoUsd": { "type": "number", "format": "float" } }
+      },
+      "SolicitudCrearEventoIngreso": {
+        "type": "object",
+        "required": ["idCanal", "origen", "montoBrutoUsd"],
+        "properties": {
+          "idCanal": { "type": "string" },
+          "idUnidadMonetizable": { "type": "string", "description": "Referencia al video como UnidadMonetizable, modelo propio de este contexto (NO el ActivoDeVideo de Publicacion ni el ItemCatalogo de Catalogo)." },
+          "origen": { "type": "string", "enum": ["PUBLICIDAD", "MEMBRESIA", "PROPINA"] },
+          "montoBrutoUsd": { "type": "number", "format": "float" }
+        }
+      },
+      "EventoIngreso": {
+        "type": "object",
+        "description": "Entidad del agregado CuentaCreador, encapsula la regla de reparto de ingresos.",
+        "properties": {
+          "idEventoIngreso": { "type": "string" },
+          "idCanal": { "type": "string" },
+          "origen": { "type": "string" },
+          "montoBrutoUsd": { "type": "number" },
+          "montoCreadorUsd": { "type": "number" },
+          "estado": { "type": "string", "enum": ["PENDIENTE", "CONFIRMADO", "PAGADO"] }
+        }
+      },
+      "ReporteGanancias": {
+        "type": "object",
+        "properties": {
+          "idCanal": { "type": "string" },
+          "totalGananciasUsd": { "type": "number" },
+          "rpm": { "type": "number", "description": "Ingreso por cada 1000 vistas (revenue per mille)." },
+          "desglose": { "type": "array", "items": { "$ref": "#/components/schemas/EntradaDesgloseGanancias" } }
+        }
+      },
+      "EntradaDesgloseGanancias": {
+        "type": "object",
+        "properties": { "idUnidadMonetizable": { "type": "string" }, "origen": { "type": "string" }, "montoUsd": { "type": "number" } }
+      },
+      "Saldo": {
+        "type": "object",
+        "properties": { "idCanal": { "type": "string" }, "disponibleUsd": { "type": "number" }, "minimoRetiroUsd": { "type": "number" } }
+      },
+      "SolicitudRetiro": {
+        "type": "object",
+        "required": ["idCanal", "montoUsd"],
+        "properties": { "idCanal": { "type": "string" }, "montoUsd": { "type": "number" } }
+      },
+      "Retiro": {
+        "type": "object",
+        "description": "Raiz del Agregado CuentaCreador es quien controla la emision de Retiro (composicion).",
+        "properties": {
+          "idRetiro": { "type": "string" },
+          "idCanal": { "type": "string" },
+          "montoUsd": { "type": "number" },
+          "estado": { "type": "string", "enum": ["SOLICITADO", "PROCESANDO", "PAGADO", "FALLIDO"] },
+          "solicitadoEn": { "type": "string", "format": "date-time" }
+        }
+      },
+      "SolicitudDocumentoFiscal": {
+        "type": "object",
+        "required": ["tipoDocumento", "urlDocumento"],
+        "properties": { "tipoDocumento": { "type": "string" }, "urlDocumento": { "type": "string" } }
+      },
+      "RespuestaError": {
+        "type": "object",
+        "properties": { "codigo": { "type": "string" }, "mensaje": { "type": "string" }, "marcaTiempo": { "type": "string", "format": "date-time" } }
+      }
+    },
+    "securitySchemes": {
+      "autenticacionBearer": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    }
+  }
+}
