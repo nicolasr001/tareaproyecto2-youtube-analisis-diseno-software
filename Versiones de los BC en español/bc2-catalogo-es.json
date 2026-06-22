@@ -1,0 +1,514 @@
+{
+  "openapi": "3.0.4",
+  "info": {
+    "title": "BC2 - Catalogo Editorial y Derechos",
+    "description": "Responsabilidad central: definir que contenido existe publicamente, como se presenta y bajo que reglas puede mostrarse (legal, territorial, etaria, moderacion).\n\nAqui el 'video' es un ItemDeCatalogo (item de catalogo editorial), NUNCA un archivo. Un ItemDeCatalogo puede existir sin estar publicado. La visibilidad depende de reglas editoriales y legales, no de infraestructura de streaming.\n\nAlcance (Si): canales, metadata editorial, publicacion, listas de reproduccion, derechos, restricciones.\nAlcance (No): transcodificacion, ranking de recomendaciones, comentarios, facturacion.\n\nEste contexto actua como Servicio de Host Abierto (Open Host Service): publica eventos estandar que Descubrimiento, Monetizacion y Publicidad consumen sin integracion a medida.\n\nEventos que EMITE: ItemPublicado, ItemDespublicado, ItemActualizado, RestriccionAplicada, RestriccionLevantada, ReclamoDerechosCreado, ReclamoDerechosResuelto.\nEventos que CONSUME: ActivoListoParaPublicacion (desde BC1 Publicacion).\n\nRequisitos funcionales cubiertos: RF-C1 (canales), RF-C2 (creacion editorial), RF-C3 (publicacion y visibilidad), RF-C4 (listas de reproduccion), RF-C5 (derechos), RF-C6 (politicas y restricciones).",
+    "version": "1.0.0",
+    "contact": { "name": "Equipo BC2 - Catalogo", "email": "bc2-catalogo@proyecto-youtube.uoh.cl" }
+  },
+  "servers": [
+    { "url": "https://api.youtube-ddd.local/catalogo/v1", "description": "Servidor del Bounded Context Catalogo Editorial y Derechos" }
+  ],
+  "tags": [
+    { "name": "canales", "description": "RF-C1: Gestion de canales" },
+    { "name": "items-catalogo", "description": "RF-C2: Creacion y edicion editorial" },
+    { "name": "publicacion", "description": "RF-C3: Publicacion y visibilidad" },
+    { "name": "listas-reproduccion", "description": "RF-C4: Listas de reproduccion" },
+    { "name": "derechos", "description": "RF-C5: Derechos y reclamaciones" },
+    { "name": "politicas", "description": "RF-C6: Politicas y restricciones" }
+  ],
+  "paths": {
+    "/canales": {
+      "post": {
+        "tags": ["canales"],
+        "summary": "Crear un canal.",
+        "description": "RF-C1: El sistema debe permitir crear un canal asociado a un creador.",
+        "operationId": "crearCanal",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SolicitudCrearCanal" },
+              "example": { "idCreador": "usr-7f2a1c", "nombre": "Canal de Tutoriales DDD" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Canal creado.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Canal" },
+                "example": { "idCanal": "can-55ee10", "idCreador": "usr-7f2a1c", "nombre": "Canal de Tutoriales DDD", "descripcion": "", "urlImagen": null }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/SolicitudInvalida" }
+        },
+        "security": [{ "autenticacionBearer": ["creador"] }]
+      }
+    },
+    "/canales/{idCanal}": {
+      "get": {
+        "tags": ["canales"],
+        "summary": "Consultar informacion publica del canal.",
+        "description": "RF-C1: El sistema debe permitir consultar la informacion publica del canal (nombre, descripcion, imagen).",
+        "operationId": "obtenerCanal",
+        "parameters": [{ "$ref": "#/components/parameters/ParametroIdCanal" }],
+        "responses": {
+          "200": { "description": "Datos del canal.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Canal" } } } },
+          "404": { "$ref": "#/components/responses/NoEncontrado" }
+        }
+      },
+      "patch": {
+        "tags": ["canales"],
+        "summary": "Actualizar informacion publica del canal.",
+        "description": "RF-C1: El sistema debe permitir actualizar la informacion publica del canal.",
+        "operationId": "actualizarCanal",
+        "parameters": [{ "$ref": "#/components/parameters/ParametroIdCanal" }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SolicitudActualizarCanal" } } }
+        },
+        "responses": {
+          "200": { "description": "Canal actualizado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Canal" } } } },
+          "404": { "$ref": "#/components/responses/NoEncontrado" }
+        },
+        "security": [{ "autenticacionBearer": ["creador"] }]
+      }
+    },
+    "/canales/{idCanal}/items": {
+      "get": {
+        "tags": ["canales"],
+        "summary": "Listar contenido publicado de un canal.",
+        "description": "RF-C1: El sistema debe permitir listar el contenido publicado de un canal.",
+        "operationId": "listarItemsCanal",
+        "parameters": [
+          { "$ref": "#/components/parameters/ParametroIdCanal" },
+          { "$ref": "#/components/parameters/ParametroPagina" },
+          { "$ref": "#/components/parameters/ParametroTamanoPagina" }
+        ],
+        "responses": {
+          "200": { "description": "Lista paginada de items publicados.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RespuestaListaItemsCatalogo" } } } }
+        }
+      }
+    },
+    "/catalogo/items": {
+      "post": {
+        "tags": ["items-catalogo"],
+        "summary": "Vincular un activo tecnico con metadata editorial.",
+        "description": "RF-C2: El sistema debe permitir vincular un ActivoDeVideo (del contexto Publicacion) con metadata editorial (titulo, descripcion, tags, categoria, miniatura), guardandolo como BORRADOR.",
+        "operationId": "crearItemCatalogo",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SolicitudCrearItemCatalogo" },
+              "example": {
+                "idActivo": "act-9d12ef",
+                "idCanal": "can-55ee10",
+                "titulo": "Introduccion a Domain-Driven Design",
+                "descripcion": "En este video explicamos los conceptos basicos de DDD.",
+                "etiquetas": ["ddd", "arquitectura", "software"],
+                "categoria": "EDUCACION",
+                "urlMiniatura": "https://cdn.youtube-ddd.local/miniaturas/act-9d12ef.jpg"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "ItemDeCatalogo creado en estado BORRADOR.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ItemCatalogo" },
+                "example": {
+                  "idItem": "itm-30bf77",
+                  "idActivo": "act-9d12ef",
+                  "idCanal": "can-55ee10",
+                  "titulo": "Introduccion a Domain-Driven Design",
+                  "estado": "BORRADOR",
+                  "visibilidad": { "publicado": false, "edadMinima": 0, "paisesBloqueados": [] }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/SolicitudInvalida" }
+        },
+        "security": [{ "autenticacionBearer": ["creador"] }]
+      }
+    },
+    "/catalogo/items/{idItem}": {
+      "get": {
+        "tags": ["items-catalogo"],
+        "summary": "Consultar un item del catalogo.",
+        "operationId": "obtenerItemCatalogo",
+        "parameters": [{ "$ref": "#/components/parameters/ParametroIdItem" }],
+        "responses": {
+          "200": { "description": "Item del catalogo.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ItemCatalogo" } } } },
+          "404": { "$ref": "#/components/responses/NoEncontrado" }
+        }
+      },
+      "patch": {
+        "tags": ["items-catalogo"],
+        "summary": "Editar metadata de contenido existente.",
+        "description": "RF-C2: El sistema debe permitir editar metadata de contenido existente.",
+        "operationId": "actualizarItemCatalogo",
+        "parameters": [{ "$ref": "#/components/parameters/ParametroIdItem" }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SolicitudActualizarItemCatalogo" } } }
+        },
+        "responses": {
+          "200": { "description": "Item actualizado. Emite evento ItemActualizado si estaba publicado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ItemCatalogo" } } } },
+          "404": { "$ref": "#/components/responses/NoEncontrado" }
+        },
+        "security": [{ "autenticacionBearer": ["creador"] }]
+      }
+    },
+    "/catalogo/items/{idItem}/publicar": {
+      "post": {
+        "tags": ["publicacion"],
+        "summary": "Publicar un contenido.",
+        "description": "RF-C3: El sistema debe permitir publicar un contenido, haciendolo disponible segun reglas definidas. Emite evento ItemPublicado consumido por Descubrimiento, Monetizacion y Publicidad.",
+        "operationId": "publicarItem",
+        "parameters": [{ "$ref": "#/components/parameters/ParametroIdItem" }],
+        "responses": {
+          "200": {
+            "description": "Item publicado.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ItemCatalogo" },
+                "example": { "idItem": "itm-30bf77", "estado": "PUBLICADO", "visibilidad": { "publicado": true, "edadMinima": 0, "paisesBloqueados": [] } }
+              }
+            }
+          },
+          "409": { "description": "El item no puede publicarse (ej. restringido por reclamo de derechos)." }
+        },
+        "security": [{ "autenticacionBearer": ["creador"] }]
+      }
+    },
+    "/catalogo/items/{idItem}/despublicar": {
+      "post": {
+        "tags": ["publicacion"],
+        "summary": "Despublicar u ocultar contenido.",
+        "description": "RF-C3: El sistema debe permitir despublicar u ocultar contenido. Emite evento ItemDespublicado.",
+        "operationId": "despublicarItem",
+        "parameters": [{ "$ref": "#/components/parameters/ParametroIdItem" }],
+        "responses": {
+          "200": { "description": "Item despublicado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ItemCatalogo" } } } }
+        },
+        "security": [{ "autenticacionBearer": ["creador"] }]
+      }
+    },
+    "/catalogo/items/{idItem}/visibilidad": {
+      "get": {
+        "tags": ["publicacion"],
+        "summary": "Consultar si un contenido es visible para un usuario.",
+        "description": "RF-C3: Consulta sincrona usada por otros contextos (ej. Publicacion antes de servir el stream) para validar visibilidad segun pais, edad y estado de moderacion. Patron Conformista: los demas contextos se conforman a esta respuesta.",
+        "operationId": "verificarVisibilidad",
+        "parameters": [
+          { "$ref": "#/components/parameters/ParametroIdItem" },
+          { "name": "pais", "in": "query", "schema": { "type": "string", "example": "CL" } },
+          { "name": "edadEspectador", "in": "query", "schema": { "type": "integer", "example": 25 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resultado de la validacion de visibilidad.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RespuestaVerificacionVisibilidad" },
+                "example": { "idItem": "itm-30bf77", "esVisible": true, "razon": null }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/listas-reproduccion": {
+      "post": {
+        "tags": ["listas-reproduccion"],
+        "summary": "Crear una coleccion ordenada de contenidos.",
+        "description": "RF-C4: El sistema debe permitir crear colecciones ordenadas de contenidos.",
+        "operationId": "crearListaReproduccion",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SolicitudCrearListaReproduccion" },
+              "example": { "idCanal": "can-55ee10", "titulo": "Serie DDD Completa" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Lista de reproduccion creada.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ListaReproduccion" } } } }
+        },
+        "security": [{ "autenticacionBearer": ["creador"] }]
+      }
+    },
+    "/listas-reproduccion/{idLista}/items": {
+      "post": {
+        "tags": ["listas-reproduccion"],
+        "summary": "Agregar un item a la lista de reproduccion.",
+        "description": "RF-C4: El sistema debe permitir agregar, quitar y reordenar items en una coleccion.",
+        "operationId": "agregarItemLista",
+        "parameters": [{ "$ref": "#/components/parameters/ParametroIdLista" }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SolicitudAgregarItemLista" }, "example": { "idItem": "itm-30bf77", "posicion": 1 } } }
+        },
+        "responses": {
+          "200": { "description": "Item agregado a la lista de reproduccion.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ListaReproduccion" } } } }
+        },
+        "security": [{ "autenticacionBearer": ["creador"] }]
+      },
+      "get": {
+        "tags": ["listas-reproduccion"],
+        "summary": "Consultar una lista de reproduccion con su orden.",
+        "description": "RF-C4: El sistema debe permitir consultar una lista de reproduccion con su orden.",
+        "operationId": "obtenerItemsLista",
+        "parameters": [{ "$ref": "#/components/parameters/ParametroIdLista" }],
+        "responses": {
+          "200": { "description": "Items ordenados de la lista.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ListaReproduccion" } } } }
+        }
+      }
+    },
+    "/catalogo/items/{idItem}/reclamos-derechos": {
+      "post": {
+        "tags": ["derechos"],
+        "summary": "Registrar un reclamo de derechos.",
+        "description": "RF-C5: El sistema debe permitir registrar reclamaciones de derechos sobre un contenido. Emite evento ReclamoDerechosCreado.",
+        "operationId": "crearReclamoDerechos",
+        "parameters": [{ "$ref": "#/components/parameters/ParametroIdItem" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SolicitudCrearReclamoDerechos" },
+              "example": { "nombreReclamante": "Productora XYZ", "motivo": "Uso no autorizado de musica registrada" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Reclamo registrado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReclamoDerechos" } } } }
+        }
+      }
+    },
+    "/reclamos-derechos/{idReclamo}/resolver": {
+      "post": {
+        "tags": ["derechos"],
+        "summary": "Resolver un reclamo.",
+        "description": "RF-C5: El sistema debe permitir resolver una reclamacion (aceptar, disputar, retirar). Si se acepta, puede restringir el contenido. Emite evento ReclamoDerechosResuelto.",
+        "operationId": "resolverReclamoDerechos",
+        "parameters": [{ "name": "idReclamo", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SolicitudResolverReclamo" },
+              "example": { "resolucion": "ACEPTADO", "restringirItem": true }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Reclamo resuelto.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReclamoDerechos" } } } }
+        }
+      }
+    },
+    "/catalogo/items/{idItem}/restricciones": {
+      "post": {
+        "tags": ["politicas"],
+        "summary": "Aplicar una restriccion de contenido.",
+        "description": "RF-C6: El sistema debe permitir aplicar restricciones (edad minima, bloqueo geografico, limitacion de monetizacion). Emite evento RestriccionAplicada.",
+        "operationId": "aplicarRestriccion",
+        "parameters": [{ "$ref": "#/components/parameters/ParametroIdItem" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SolicitudAplicarRestriccion" },
+              "example": { "tipo": "RESTRICCION_EDAD", "valor": "18" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Restriccion aplicada.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ItemCatalogo" } } } }
+        },
+        "security": [{ "autenticacionBearer": ["sistema"] }]
+      },
+      "get": {
+        "tags": ["politicas"],
+        "summary": "Consultar historial de estado de politica.",
+        "description": "RF-C6: El sistema debe mantener el historial de estado de politica de cada contenido y permitir consultarlo.",
+        "operationId": "obtenerHistorialRestricciones",
+        "parameters": [{ "$ref": "#/components/parameters/ParametroIdItem" }],
+        "responses": {
+          "200": {
+            "description": "Historial de restricciones.",
+            "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/EntradaHistorialRestriccion" } } } }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "ParametroIdCanal": { "name": "idCanal", "in": "path", "required": true, "schema": { "type": "string" } },
+      "ParametroIdItem": { "name": "idItem", "in": "path", "required": true, "schema": { "type": "string" }, "description": "Identificador del ItemDeCatalogo (NO confundir con idActivo de Publicacion)." },
+      "ParametroIdLista": { "name": "idLista", "in": "path", "required": true, "schema": { "type": "string" } },
+      "ParametroPagina": { "name": "pagina", "in": "query", "schema": { "type": "integer", "minimum": 1, "default": 1 } },
+      "ParametroTamanoPagina": { "name": "tamanoPagina", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 } }
+    },
+    "schemas": {
+      "SolicitudCrearCanal": {
+        "type": "object",
+        "required": ["idCreador", "nombre"],
+        "properties": { "idCreador": { "type": "string" }, "nombre": { "type": "string" } }
+      },
+      "SolicitudActualizarCanal": {
+        "type": "object",
+        "properties": { "nombre": { "type": "string" }, "descripcion": { "type": "string" }, "urlImagen": { "type": "string" } }
+      },
+      "Canal": {
+        "type": "object",
+        "description": "Entidad editorial. NO es la misma entidad que PerfilComunidad en Audiencia ni CuentaAnunciante en Publicidad.",
+        "properties": {
+          "idCanal": { "type": "string" },
+          "idCreador": { "type": "string" },
+          "nombre": { "type": "string" },
+          "descripcion": { "type": "string" },
+          "urlImagen": { "type": "string", "nullable": true }
+        }
+      },
+      "SolicitudCrearItemCatalogo": {
+        "type": "object",
+        "required": ["idActivo", "idCanal", "titulo"],
+        "properties": {
+          "idActivo": { "type": "string", "description": "Referencia al ActivoDeVideo del BC1 Publicacion (RNF-2: ID compartido, modelo NO compartido)." },
+          "idCanal": { "type": "string" },
+          "titulo": { "type": "string" },
+          "descripcion": { "type": "string" },
+          "etiquetas": { "type": "array", "items": { "type": "string" } },
+          "categoria": { "type": "string" },
+          "urlMiniatura": { "type": "string" }
+        }
+      },
+      "SolicitudActualizarItemCatalogo": {
+        "type": "object",
+        "properties": {
+          "titulo": { "type": "string" },
+          "descripcion": { "type": "string" },
+          "etiquetas": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "ItemCatalogo": {
+        "type": "object",
+        "description": "Raiz del Agregado (Aggregate Root) de este Bounded Context. Representa el video como producto editorial publico, distinto del ActivoDeVideo tecnico.",
+        "properties": {
+          "idItem": { "type": "string" },
+          "idActivo": { "type": "string" },
+          "idCanal": { "type": "string" },
+          "titulo": { "type": "string" },
+          "estado": { "type": "string", "enum": ["BORRADOR", "PUBLICADO", "DESPUBLICADO"] },
+          "visibilidad": { "$ref": "#/components/schemas/PoliticaVisibilidad" }
+        }
+      },
+      "PoliticaVisibilidad": {
+        "type": "object",
+        "description": "Objeto de Valor (Value Object) embebido en ItemCatalogo (composicion).",
+        "properties": {
+          "publicado": { "type": "boolean" },
+          "edadMinima": { "type": "integer" },
+          "paisesBloqueados": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "RespuestaVerificacionVisibilidad": {
+        "type": "object",
+        "properties": {
+          "idItem": { "type": "string" },
+          "esVisible": { "type": "boolean" },
+          "razon": { "type": "string", "nullable": true, "example": "RESTRINGIDO_POR_EDAD" }
+        }
+      },
+      "RespuestaListaItemsCatalogo": {
+        "type": "object",
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/ItemCatalogo" } },
+          "pagina": { "type": "integer" },
+          "tamanoPagina": { "type": "integer" },
+          "totalItems": { "type": "integer" }
+        }
+      },
+      "SolicitudCrearListaReproduccion": {
+        "type": "object",
+        "required": ["idCanal", "titulo"],
+        "properties": { "idCanal": { "type": "string" }, "titulo": { "type": "string" } }
+      },
+      "SolicitudAgregarItemLista": {
+        "type": "object",
+        "required": ["idItem"],
+        "properties": { "idItem": { "type": "string" }, "posicion": { "type": "integer" } }
+      },
+      "ListaReproduccion": {
+        "type": "object",
+        "properties": {
+          "idLista": { "type": "string" },
+          "idCanal": { "type": "string" },
+          "titulo": { "type": "string" },
+          "idsItemsOrdenados": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "SolicitudCrearReclamoDerechos": {
+        "type": "object",
+        "required": ["nombreReclamante", "motivo"],
+        "properties": { "nombreReclamante": { "type": "string" }, "motivo": { "type": "string" } }
+      },
+      "SolicitudResolverReclamo": {
+        "type": "object",
+        "required": ["resolucion"],
+        "properties": {
+          "resolucion": { "type": "string", "enum": ["ACEPTADO", "DISPUTADO", "RETIRADO"] },
+          "restringirItem": { "type": "boolean", "default": false }
+        }
+      },
+      "ReclamoDerechos": {
+        "type": "object",
+        "description": "Entidad del agregado ItemCatalogo (composicion: 1 ItemCatalogo -- 0..* ReclamoDerechos).",
+        "properties": {
+          "idReclamo": { "type": "string" },
+          "idItem": { "type": "string" },
+          "nombreReclamante": { "type": "string" },
+          "estado": { "type": "string", "enum": ["ABIERTO", "ACEPTADO", "DISPUTADO", "RETIRADO"] }
+        }
+      },
+      "SolicitudAplicarRestriccion": {
+        "type": "object",
+        "required": ["tipo", "valor"],
+        "properties": {
+          "tipo": { "type": "string", "enum": ["RESTRICCION_EDAD", "BLOQUEO_GEOGRAFICO", "LIMITE_MONETIZACION"] },
+          "valor": { "type": "string" }
+        }
+      },
+      "EntradaHistorialRestriccion": {
+        "type": "object",
+        "properties": {
+          "tipo": { "type": "string" },
+          "valor": { "type": "string" },
+          "aplicadaEn": { "type": "string", "format": "date-time" },
+          "levantadaEn": { "type": "string", "format": "date-time", "nullable": true }
+        }
+      },
+      "RespuestaError": {
+        "type": "object",
+        "properties": { "codigo": { "type": "string" }, "mensaje": { "type": "string" }, "marcaTiempo": { "type": "string", "format": "date-time" } }
+      }
+    },
+    "responses": {
+      "SolicitudInvalida": { "description": "Solicitud invalida.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RespuestaError" } } } },
+      "NoEncontrado": { "description": "Recurso no encontrado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RespuestaError" } } } }
+    },
+    "securitySchemes": {
+      "autenticacionBearer": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    }
+  }
+}

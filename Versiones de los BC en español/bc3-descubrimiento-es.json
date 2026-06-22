@@ -1,0 +1,352 @@
+{
+  "openapi": "3.0.4",
+  "info": {
+    "title": "BC3 - Descubrimiento y Personalizacion",
+    "description": "Responsabilidad central: ayudar al usuario a encontrar contenido relevante: busqueda, feeds, recomendaciones, tendencias y ranking.\n\nEste contexto trata el video como CandidatoRecomendacion (candidato de ranking con puntaje de relevancia), NUNCA como archivo ni como producto editorial completo. Devuelve referencias a contenido (idItem), no la metadata completa ni el stream.\n\nAlcance (Si): busqueda, feed de inicio, relacionados, tendencias, senales de ranking.\nAlcance (No): almacenar comentarios, servir stream, pagar creadores, crear campanas.\n\nRestriccion de diseno clave: este contexto NO define reglas de visibilidad. Debe respetar (patron Conformista) lo que diga Catalogo (BC2) antes de mostrar cualquier resultado.\n\nEventos que EMITE: BusquedaRealizada, RecomendacionServida.\nEventos que CONSUME: ItemPublicado, ItemActualizado, ItemRestringido (desde Catalogo), SenalEngagementAgregada (desde Audiencia), SesionReproduccionCompletada (desde Publicacion).\n\nRequisitos funcionales cubiertos: RF-D1 (busqueda), RF-D2 (feeds personalizados), RF-D3 (contenido relacionado), RF-D4 (tendencias), RF-D5 (captura de senales), RF-D6 (indexacion).",
+    "version": "1.0.0",
+    "contact": { "name": "Equipo BC3 - Descubrimiento", "email": "bc3-descubrimiento@proyecto-youtube.uoh.cl" }
+  },
+  "servers": [
+    { "url": "https://api.youtube-ddd.local/descubrimiento/v1", "description": "Servidor del Bounded Context Descubrimiento y Personalizacion" }
+  ],
+  "tags": [
+    { "name": "busqueda", "description": "RF-D1: Busqueda de contenido" },
+    { "name": "feeds", "description": "RF-D2: Feeds personalizados" },
+    { "name": "relacionados", "description": "RF-D3: Contenido relacionado" },
+    { "name": "tendencias", "description": "RF-D4: Tendencias y exploracion" },
+    { "name": "senales", "description": "RF-D5: Captura de senales de interaccion" },
+    { "name": "indexacion", "description": "RF-D6: Indexacion (uso interno/sistema)" }
+  ],
+  "paths": {
+    "/busqueda": {
+      "get": {
+        "tags": ["busqueda"],
+        "summary": "Buscar contenido por texto libre.",
+        "description": "RF-D1: El sistema debe permitir buscar contenido por texto libre, filtrar y ordenar resultados.",
+        "operationId": "buscarContenido",
+        "parameters": [
+          { "name": "q", "in": "query", "required": true, "schema": { "type": "string" }, "example": "domain driven design" },
+          { "name": "tipo", "in": "query", "schema": { "type": "string", "enum": ["VIDEO", "CANAL", "TODO"], "default": "TODO" } },
+          { "name": "ordenarPor", "in": "query", "schema": { "type": "string", "enum": ["RELEVANCIA", "FECHA", "POPULARIDAD"], "default": "RELEVANCIA" } },
+          { "$ref": "#/components/parameters/ParametroPagina" },
+          { "$ref": "#/components/parameters/ParametroTamanoPagina" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resultados de busqueda.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RespuestaResultadosBusqueda" },
+                "example": {
+                  "consulta": "domain driven design",
+                  "resultados": [
+                    { "idCandidato": "itm-30bf77", "tipo": "VIDEO", "puntajeRelevancia": 0.93, "titulo": "Introduccion a Domain-Driven Design" },
+                    { "idCandidato": "can-55ee10", "tipo": "CANAL", "puntajeRelevancia": 0.81, "titulo": "Canal de Tutoriales DDD" }
+                  ],
+                  "pagina": 1,
+                  "totalResultados": 48
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/busqueda/sugerencias": {
+      "get": {
+        "tags": ["busqueda"],
+        "summary": "Sugerencias mientras el usuario escribe.",
+        "description": "RF-D1: El sistema debe ofrecer sugerencias mientras el usuario escribe (autocompletado).",
+        "operationId": "obtenerSugerenciasBusqueda",
+        "parameters": [{ "name": "q", "in": "query", "required": true, "schema": { "type": "string" }, "example": "domain dri" }],
+        "responses": {
+          "200": {
+            "description": "Lista de sugerencias.",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "type": "string" } },
+                "example": ["domain driven design", "domain driven design tutorial", "domain driven design vs microservices"]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/feeds/inicio": {
+      "get": {
+        "tags": ["feeds"],
+        "summary": "Generar el feed de inicio personalizado.",
+        "description": "RF-D2: El sistema debe generar un feed de inicio personalizado por usuario o sesion, con paginacion, y poder explicar internamente por que se recomienda cada item.",
+        "operationId": "obtenerFeedInicio",
+        "parameters": [
+          { "name": "idUsuario", "in": "query", "schema": { "type": "string" } },
+          { "name": "idSesion", "in": "query", "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/ParametroPagina" },
+          { "$ref": "#/components/parameters/ParametroTamanoPagina" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feed personalizado paginado.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RespuestaFeed" },
+                "example": {
+                  "items": [
+                    { "idCandidato": "itm-30bf77", "puntajeRelevancia": 0.97, "explicacion": "Porque viste contenido similar de Arquitectura de Software" }
+                  ],
+                  "tokenSiguientePagina": "tok-eyJwIjoyfQ"
+                }
+              }
+            }
+          }
+        },
+        "security": [{ "autenticacionBearer": ["espectador"] }]
+      }
+    },
+    "/videos/{idCandidato}/relacionados": {
+      "get": {
+        "tags": ["relacionados"],
+        "summary": "Obtener videos relacionados.",
+        "description": "RF-D3: Dado un contenido, el sistema debe devolver una lista de videos relacionados considerando similitud tematica, historial y senales de engagement.",
+        "operationId": "obtenerContenidoRelacionado",
+        "parameters": [
+          { "name": "idCandidato", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/ParametroTamanoPagina" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de candidatos relacionados.",
+            "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/CandidatoRecomendacion" } } } }
+          },
+          "404": { "$ref": "#/components/responses/NoEncontrado" }
+        }
+      }
+    },
+    "/tendencias": {
+      "get": {
+        "tags": ["tendencias"],
+        "summary": "Calcular y exponer contenido en tendencia.",
+        "description": "RF-D4: El sistema debe calcular y exponer contenido trending por region y/o categoria.",
+        "operationId": "obtenerTendencias",
+        "parameters": [
+          { "name": "region", "in": "query", "schema": { "type": "string", "example": "CL" } },
+          { "name": "categoria", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de contenido en tendencia.",
+            "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/CandidatoRecomendacion" } } } }
+          }
+        }
+      }
+    },
+    "/explorar": {
+      "get": {
+        "tags": ["tendencias"],
+        "summary": "Explorar por categoria o tema.",
+        "description": "RF-D4: El sistema debe permitir explorar por categoria o tema.",
+        "operationId": "explorar",
+        "parameters": [{ "name": "categoria", "in": "query", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Contenido de la categoria explorada.", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/CandidatoRecomendacion" } } } } }
+        }
+      }
+    },
+    "/senales/impresiones": {
+      "post": {
+        "tags": ["senales"],
+        "summary": "Registrar una impresion en feed.",
+        "description": "RF-D5: El sistema debe registrar cuando un usuario ve un item en un feed (impresion).",
+        "operationId": "registrarImpresion",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SolicitudImpresion" },
+              "example": { "idUsuario": "usr-44aa21", "idCandidato": "itm-30bf77", "contextoFeed": "INICIO" }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Impresion registrada." } }
+      }
+    },
+    "/senales/clicks": {
+      "post": {
+        "tags": ["senales"],
+        "summary": "Registrar un click en item recomendado.",
+        "description": "RF-D5: El sistema debe registrar cuando un usuario hace click en un item recomendado, e incorporar tiempo de visualizacion como senal de interes (via watch-time, ver endpoint relacionado).",
+        "operationId": "registrarClick",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SolicitudClick" },
+              "example": { "idUsuario": "usr-44aa21", "idCandidato": "itm-30bf77" }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Click registrado. Actualiza el perfil de intereses del usuario." } }
+      }
+    },
+    "/senales/tiempo-visualizacion": {
+      "post": {
+        "tags": ["senales"],
+        "summary": "Registrar tiempo de visualizacion como senal.",
+        "description": "RF-D5: El sistema debe incorporar tiempo de visualizacion como senal de interes y actualizar el perfil de intereses del usuario a partir de SesionReproduccionCompletada (Publicacion).",
+        "operationId": "registrarSenalTiempoVisualizacion",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SolicitudSenalTiempoVisualizacion" },
+              "example": { "idUsuario": "usr-44aa21", "idCandidato": "itm-30bf77", "segundosVistos": 245, "idActivo": "act-9d12ef" }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Senal de tiempo de visualizacion registrada y perfil de interes actualizado." } }
+      }
+    },
+    "/usuarios/{idUsuario}/perfil-intereses": {
+      "get": {
+        "tags": ["senales"],
+        "summary": "Consultar el perfil de intereses calculado.",
+        "description": "RF-D5: Exposicion del perfil de intereses actualizado a partir de las senales capturadas.",
+        "operationId": "obtenerPerfilIntereses",
+        "parameters": [{ "name": "idUsuario", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": {
+            "description": "Perfil de intereses del usuario.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PerfilIntereses" },
+                "example": { "idUsuario": "usr-44aa21", "categoriasPrincipales": ["EDUCACION", "TECNOLOGIA"], "actualizadoEn": "2026-06-20T15:10:00Z" }
+              }
+            }
+          }
+        },
+        "security": [{ "autenticacionBearer": ["espectador"] }]
+      }
+    },
+    "/indice/items": {
+      "post": {
+        "tags": ["indexacion"],
+        "summary": "Indexar contenido nuevo publicado.",
+        "description": "RF-D6: El sistema debe indexar contenido nuevo cuando sea publicado en Catalogo. Este endpoint es invocado por el manejador del evento ItemPublicado (uso interno de sistema, no es llamado por un humano).",
+        "operationId": "indexarItem",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SolicitudIndexarItem" },
+              "example": { "idItem": "itm-30bf77", "titulo": "Introduccion a Domain-Driven Design", "etiquetas": ["ddd", "arquitectura"], "categoria": "EDUCACION" }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Item indexado como CandidatoRecomendacion." } },
+        "security": [{ "autenticacionBearer": ["sistema"] }]
+      }
+    },
+    "/indice/items/{idCandidato}": {
+      "delete": {
+        "tags": ["indexacion"],
+        "summary": "Remover un item del indice.",
+        "description": "RF-D6: El sistema debe actualizar o remover items del indice cuando cambie su visibilidad (evento ItemDespublicado o ItemRestringido).",
+        "operationId": "removerDelIndice",
+        "parameters": [{ "name": "idCandidato", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "204": { "description": "Item removido del indice." } },
+        "security": [{ "autenticacionBearer": ["sistema"] }]
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "ParametroPagina": { "name": "pagina", "in": "query", "schema": { "type": "integer", "minimum": 1, "default": 1 } },
+      "ParametroTamanoPagina": { "name": "tamanoPagina", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 } }
+    },
+    "schemas": {
+      "CandidatoRecomendacion": {
+        "type": "object",
+        "description": "Raiz del Agregado (Aggregate Root) de este Bounded Context. Representa el video como candidato de ranking, NO como archivo ni como producto editorial.",
+        "properties": {
+          "idCandidato": { "type": "string", "description": "Mismo valor que idItem en Catalogo, pero modelo de datos completamente distinto (RNF-2)." },
+          "puntajeRelevancia": { "type": "number", "format": "float" },
+          "categoria": { "type": "string" },
+          "titulo": { "type": "string", "description": "Copia liviana indexada, NO la fuente de verdad editorial." }
+        }
+      },
+      "RespuestaResultadosBusqueda": {
+        "type": "object",
+        "properties": {
+          "consulta": { "type": "string" },
+          "resultados": { "type": "array", "items": { "$ref": "#/components/schemas/CandidatoRecomendacion" } },
+          "pagina": { "type": "integer" },
+          "totalResultados": { "type": "integer" }
+        }
+      },
+      "RespuestaFeed": {
+        "type": "object",
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/ItemFeed" } },
+          "tokenSiguientePagina": { "type": "string", "nullable": true }
+        }
+      },
+      "ItemFeed": {
+        "type": "object",
+        "properties": {
+          "idCandidato": { "type": "string" },
+          "puntajeRelevancia": { "type": "number" },
+          "explicacion": { "type": "string", "description": "RF-D2: explicacion interna de por que se recomienda este item." }
+        }
+      },
+      "SolicitudImpresion": {
+        "type": "object",
+        "required": ["idUsuario", "idCandidato"],
+        "properties": { "idUsuario": { "type": "string" }, "idCandidato": { "type": "string" }, "contextoFeed": { "type": "string", "enum": ["INICIO", "RELACIONADOS", "TENDENCIAS"] } }
+      },
+      "SolicitudClick": {
+        "type": "object",
+        "required": ["idUsuario", "idCandidato"],
+        "properties": { "idUsuario": { "type": "string" }, "idCandidato": { "type": "string" } }
+      },
+      "SolicitudSenalTiempoVisualizacion": {
+        "type": "object",
+        "required": ["idUsuario", "idCandidato", "segundosVistos"],
+        "properties": {
+          "idUsuario": { "type": "string" },
+          "idCandidato": { "type": "string" },
+          "segundosVistos": { "type": "integer" },
+          "idActivo": { "type": "string", "description": "Referencia al evento SesionReproduccionCompletada de Publicacion." }
+        }
+      },
+      "PerfilIntereses": {
+        "type": "object",
+        "description": "Entidad/Objeto de Valor derivado, parte del agregado conceptual de personalizacion del usuario.",
+        "properties": {
+          "idUsuario": { "type": "string" },
+          "categoriasPrincipales": { "type": "array", "items": { "type": "string" } },
+          "actualizadoEn": { "type": "string", "format": "date-time" }
+        }
+      },
+      "SolicitudIndexarItem": {
+        "type": "object",
+        "required": ["idItem", "titulo"],
+        "properties": {
+          "idItem": { "type": "string" },
+          "titulo": { "type": "string" },
+          "etiquetas": { "type": "array", "items": { "type": "string" } },
+          "categoria": { "type": "string" }
+        }
+      },
+      "RespuestaError": {
+        "type": "object",
+        "properties": { "codigo": { "type": "string" }, "mensaje": { "type": "string" }, "marcaTiempo": { "type": "string", "format": "date-time" } }
+      }
+    },
+    "responses": {
+      "NoEncontrado": { "description": "Recurso no encontrado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RespuestaError" } } } }
+    },
+    "securitySchemes": {
+      "autenticacionBearer": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    }
+  }
+}

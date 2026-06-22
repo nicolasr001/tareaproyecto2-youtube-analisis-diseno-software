@@ -1,0 +1,597 @@
+{
+  "openapi": "3.0.4",
+  "info": {
+    "title": "BC1 - Publicacion y Distribucion de Contenido",
+    "description": "Responsabilidad central: gestionar el ciclo de vida tecnico del video: subida, procesamiento, almacenamiento, reproduccion y transmision en vivo.\n\nEste contexto conoce al video como ActivoDeVideo (archivo/stream), nunca como producto editorial. No decide si el contenido es visible al publico, no gestiona metadata visible (titulo, descripcion, tags) y no conoce comentarios, recomendaciones ni pagos. Esa responsabilidad pertenece a otros Bounded Contexts.\n\nAlcance (Si): subida, transcodificacion, streaming, sesiones de reproduccion, transmision en vivo.\nAlcance (No): titulo del video, comentarios, recomendaciones, pagos, campanas publicitarias.\n\nEventos que este contexto EMITE: VideoSubido, ProcesamientoCompletado, ProcesamientoFallido, ActivoListoParaPublicacion, SesionReproduccionCompletada, TransmisionEnVivoIniciada, TransmisionEnVivoFinalizada.\n\nRequisitos funcionales cubiertos: RF-P1 (gestion de subida), RF-P2 (procesamiento tecnico), RF-P3 (reproduccion), RF-P4 (transmision en vivo), RF-P5 (consulta de activos tecnicos).",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Equipo BC1 - Publicacion",
+      "email": "bc1-publicacion@proyecto-youtube.uoh.cl"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.youtube-ddd.local/publicacion/v1",
+      "description": "Servidor del Bounded Context Publicacion y Distribucion"
+    }
+  ],
+  "tags": [
+    { "name": "subidas", "description": "RF-P1: Gestion de subida de archivos de video" },
+    { "name": "procesamiento", "description": "RF-P2: Procesamiento tecnico (transcodificacion) del video" },
+    { "name": "reproduccion", "description": "RF-P3: Reproduccion y sesiones de visualizacion" },
+    { "name": "en-vivo", "description": "RF-P4: Transmision en vivo" },
+    { "name": "activos", "description": "RF-P5: Consulta de activos tecnicos del creador" }
+  ],
+  "paths": {
+    "/activos/subidas/iniciar": {
+      "post": {
+        "tags": ["subidas"],
+        "summary": "Iniciar una subida de video.",
+        "description": "RF-P1: El sistema debe permitir que un creador inicie una subida de video, completa o por partes.",
+        "operationId": "iniciarSubida",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SolicitudIniciarSubida" },
+              "example": {
+                "idCreador": "usr-7f2a1c",
+                "nombreArchivo": "tutorial-ddd-parte1.mp4",
+                "tamanoArchivoBytes": 524288000,
+                "modo": "MULTIPARTE"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Subida iniciada correctamente.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ActivoDeVideo" },
+                "example": {
+                  "idActivo": "act-9d12ef",
+                  "idCreador": "usr-7f2a1c",
+                  "estadoSubida": "PENDIENTE",
+                  "estadoProcesamiento": "NO_INICIADO",
+                  "creadoEn": "2026-06-20T10:15:00Z"
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/SolicitudInvalida" },
+          "401": { "$ref": "#/components/responses/NoAutorizado" }
+        },
+        "security": [{ "autenticacionBearer": ["creador"] }]
+      }
+    },
+    "/activos/subidas/{idSubida}/partes": {
+      "put": {
+        "tags": ["subidas"],
+        "summary": "Subir una parte del archivo.",
+        "description": "RF-P1: El sistema debe permitir subir el archivo de forma completa o por partes, e informar el progreso.",
+        "operationId": "subirParte",
+        "parameters": [
+          { "$ref": "#/components/parameters/ParametroIdSubida" },
+          {
+            "name": "numeroParte",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "integer", "minimum": 1 },
+            "description": "Numero de la parte del archivo siendo subida."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/octet-stream": {
+              "schema": { "type": "string", "format": "binary" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Parte recibida. Devuelve el progreso acumulado.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ProgresoSubida" },
+                "example": { "idSubida": "sub-aa11bb", "numeroParte": 3, "porcentajeCompletado": 42.5 }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/SolicitudInvalida" },
+          "404": { "$ref": "#/components/responses/NoEncontrado" }
+        },
+        "security": [{ "autenticacionBearer": ["creador"] }]
+      }
+    },
+    "/activos/subidas/{idSubida}/completar": {
+      "post": {
+        "tags": ["subidas"],
+        "summary": "Finalizar una subida.",
+        "description": "RF-P1 / RF-P2: Valida que la subida finalizo correctamente y dispara automaticamente el procesamiento (transcodificacion).",
+        "operationId": "completarSubida",
+        "parameters": [{ "$ref": "#/components/parameters/ParametroIdSubida" }],
+        "responses": {
+          "200": {
+            "description": "Subida finalizada y procesamiento iniciado automaticamente.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ActivoDeVideo" },
+                "example": {
+                  "idActivo": "act-9d12ef",
+                  "idCreador": "usr-7f2a1c",
+                  "estadoSubida": "COMPLETADA",
+                  "estadoProcesamiento": "PENDIENTE",
+                  "creadoEn": "2026-06-20T10:15:00Z"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "La subida no se puede completar porque faltan partes o ya fue cancelada.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RespuestaError" } } }
+          }
+        },
+        "security": [{ "autenticacionBearer": ["creador"] }]
+      }
+    },
+    "/activos/subidas/{idSubida}/cancelar": {
+      "post": {
+        "tags": ["subidas"],
+        "summary": "Cancelar una subida en curso.",
+        "description": "RF-P1: El sistema debe permitir cancelar una subida en curso.",
+        "operationId": "cancelarSubida",
+        "parameters": [{ "$ref": "#/components/parameters/ParametroIdSubida" }],
+        "responses": {
+          "204": { "description": "Subida cancelada correctamente." },
+          "404": { "$ref": "#/components/responses/NoEncontrado" }
+        },
+        "security": [{ "autenticacionBearer": ["creador"] }]
+      }
+    },
+    "/activos/{idActivo}/procesamiento": {
+      "get": {
+        "tags": ["procesamiento"],
+        "summary": "Consultar estado de procesamiento.",
+        "description": "RF-P2: El sistema debe exponer el estado del procesamiento (pendiente, en curso, completado, fallido).",
+        "operationId": "obtenerEstadoProcesamiento",
+        "parameters": [{ "$ref": "#/components/parameters/ParametroIdActivo" }],
+        "responses": {
+          "200": {
+            "description": "Estado actual del procesamiento.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RespuestaEstadoProcesamiento" },
+                "example": {
+                  "idActivo": "act-9d12ef",
+                  "estadoProcesamiento": "EN_CURSO",
+                  "trabajos": [
+                    { "idTrabajo": "trb-001", "calidadObjetivo": "360p", "estado": "COMPLETADO" },
+                    { "idTrabajo": "trb-002", "calidadObjetivo": "720p", "estado": "EN_CURSO" },
+                    { "idTrabajo": "trb-003", "calidadObjetivo": "1080p", "estado": "PENDIENTE" }
+                  ]
+                }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/NoEncontrado" }
+        },
+        "security": [{ "autenticacionBearer": ["creador"] }]
+      }
+    },
+    "/activos/{idActivo}/procesamiento/reintentar": {
+      "post": {
+        "tags": ["procesamiento"],
+        "summary": "Reintentar un procesamiento fallido.",
+        "description": "RF-P2: El sistema debe permitir reintentar un procesamiento fallido.",
+        "operationId": "reintentarProcesamiento",
+        "parameters": [{ "$ref": "#/components/parameters/ParametroIdActivo" }],
+        "responses": {
+          "202": {
+            "description": "Reintento de procesamiento aceptado.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/RespuestaEstadoProcesamiento" } }
+            }
+          },
+          "409": {
+            "description": "No se puede reintentar: el activo no esta en estado FALLIDO.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RespuestaError" } } }
+          }
+        },
+        "security": [{ "autenticacionBearer": ["creador"] }]
+      }
+    },
+    "/activos/{idActivo}/reproduccion": {
+      "get": {
+        "tags": ["reproduccion"],
+        "summary": "Obtener informacion para reproducir un video.",
+        "description": "RF-P3: El sistema debe permitir obtener la informacion necesaria para reproducir un video en un dispositivo dado, adaptando la entrega segun dispositivo, ancho de banda y region.",
+        "operationId": "obtenerInfoReproduccion",
+        "parameters": [
+          { "$ref": "#/components/parameters/ParametroIdActivo" },
+          {
+            "name": "dispositivo",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["MOVIL", "ESCRITORIO", "TV", "WEB"] }
+          },
+          {
+            "name": "region",
+            "in": "query",
+            "schema": { "type": "string", "example": "CL" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Datos de reproduccion adaptados.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InfoReproduccion" },
+                "example": {
+                  "idActivo": "act-9d12ef",
+                  "urlStream": "https://cdn.youtube-ddd.local/act-9d12ef/master.m3u8",
+                  "calidadesDisponibles": ["360p", "720p", "1080p"],
+                  "calidadRecomendada": "720p"
+                }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/NoEncontrado" },
+          "423": {
+            "description": "El activo existe pero el procesamiento aun no esta listo para reproducirse.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RespuestaError" } } }
+          }
+        }
+      }
+    },
+    "/sesiones-reproduccion": {
+      "post": {
+        "tags": ["reproduccion"],
+        "summary": "Iniciar una sesion de reproduccion.",
+        "description": "RF-P3: El sistema debe registrar sesiones de reproduccion (inicio, progreso, finalizacion) y capturar metricas tecnicas.",
+        "operationId": "iniciarSesionReproduccion",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SolicitudCrearSesionReproduccion" },
+              "example": { "idActivo": "act-9d12ef", "idEspectador": "usr-44aa21", "dispositivo": "MOVIL" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Sesion de reproduccion creada.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SesionReproduccion" },
+                "example": {
+                  "idSesion": "ses-3a5b9c",
+                  "idActivo": "act-9d12ef",
+                  "idEspectador": "usr-44aa21",
+                  "calidad": "720p",
+                  "iniciadaEn": "2026-06-20T15:02:11Z",
+                  "estado": "ACTIVA"
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/SolicitudInvalida" }
+        }
+      }
+    },
+    "/sesiones-reproduccion/{idSesion}/completar": {
+      "post": {
+        "tags": ["reproduccion"],
+        "summary": "Finalizar una sesion de reproduccion.",
+        "description": "RF-P3: Captura metricas tecnicas finales: duracion vista, calidad utilizada, interrupciones. Emite el evento SesionReproduccionCompletada.",
+        "operationId": "completarSesionReproduccion",
+        "parameters": [
+          { "name": "idSesion", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SolicitudCompletarSesionReproduccion" },
+              "example": { "segundosVistos": 245, "interrupciones": 1, "calidadFinal": "1080p" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sesion finalizada correctamente.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SesionReproduccion" } } }
+          },
+          "404": { "$ref": "#/components/responses/NoEncontrado" }
+        }
+      }
+    },
+    "/transmisiones-vivo": {
+      "post": {
+        "tags": ["en-vivo"],
+        "summary": "Configurar una transmision en vivo.",
+        "description": "RF-P4: El sistema debe permitir que un creador configure una transmision en vivo y proveer los datos de conexion (RTMP) para emitir desde OBS u otro software externo.",
+        "operationId": "crearTransmisionEnVivo",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SolicitudCrearTransmisionEnVivo" },
+              "example": { "idCreador": "usr-7f2a1c", "titulo": "Live de prueba tecnica" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Transmision configurada con datos de conexion.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TransmisionEnVivo" },
+                "example": {
+                  "idTransmision": "viv-77cd02",
+                  "idCreador": "usr-7f2a1c",
+                  "estado": "CONFIGURADA",
+                  "urlIngesta": "rtmp://ingesta.youtube-ddd.local/live",
+                  "claveTransmision": "sk_live_98f7e6d5"
+                }
+              }
+            }
+          }
+        },
+        "security": [{ "autenticacionBearer": ["creador"] }]
+      }
+    },
+    "/transmisiones-vivo/{idTransmision}/iniciar": {
+      "post": {
+        "tags": ["en-vivo"],
+        "summary": "Iniciar la transmision.",
+        "description": "RF-P4: El sistema debe permitir iniciar una transmision previamente configurada.",
+        "operationId": "iniciarTransmisionEnVivo",
+        "parameters": [{ "name": "idTransmision", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Transmision iniciada.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TransmisionEnVivo" } } } },
+          "409": { "description": "La transmision ya esta en curso o finalizada." }
+        }
+      }
+    },
+    "/transmisiones-vivo/{idTransmision}/finalizar": {
+      "post": {
+        "tags": ["en-vivo"],
+        "summary": "Finalizar la transmision.",
+        "description": "RF-P4: Al finalizar un live, el sistema debe poder generar una version grabada reutilizable como video on-demand (nuevo ActivoDeVideo).",
+        "operationId": "finalizarTransmisionEnVivo",
+        "parameters": [{ "name": "idTransmision", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": {
+            "description": "Transmision finalizada. Se genera un ActivoDeVideo grabado.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TransmisionEnVivo" },
+                "example": {
+                  "idTransmision": "viv-77cd02",
+                  "estado": "FINALIZADA",
+                  "idActivoGrabado": "act-grb-44dd11"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/creadores/{idCreador}/activos": {
+      "get": {
+        "tags": ["activos"],
+        "summary": "Listar activos tecnicos de un creador.",
+        "description": "RF-P5: El sistema debe permitir listar los contenidos tecnicos asociados a un creador, con paginacion.",
+        "operationId": "listarActivosCreador",
+        "parameters": [
+          { "name": "idCreador", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/ParametroPagina" },
+          { "$ref": "#/components/parameters/ParametroTamanoPagina" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista paginada de activos del creador.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/RespuestaListaActivos" } }
+            }
+          }
+        }
+      }
+    },
+    "/activos/{idActivo}": {
+      "get": {
+        "tags": ["activos"],
+        "summary": "Consultar el detalle tecnico de un activo.",
+        "description": "RF-P5: El sistema debe permitir consultar el detalle tecnico de un activo (duracion, formatos disponibles, estado).",
+        "operationId": "obtenerDetalleActivo",
+        "parameters": [{ "$ref": "#/components/parameters/ParametroIdActivo" }],
+        "responses": {
+          "200": {
+            "description": "Detalle tecnico del activo.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ActivoDeVideo" } } }
+          },
+          "404": { "$ref": "#/components/responses/NoEncontrado" }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "ParametroIdActivo": {
+        "name": "idActivo",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string" },
+        "description": "Identificador del ActivoDeVideo (compartido como referencia con otros contextos, ver RNF-2)."
+      },
+      "ParametroIdSubida": {
+        "name": "idSubida",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string" }
+      },
+      "ParametroPagina": {
+        "name": "pagina",
+        "in": "query",
+        "schema": { "type": "integer", "minimum": 1, "default": 1 }
+      },
+      "ParametroTamanoPagina": {
+        "name": "tamanoPagina",
+        "in": "query",
+        "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 }
+      }
+    },
+    "schemas": {
+      "SolicitudIniciarSubida": {
+        "type": "object",
+        "required": ["idCreador", "nombreArchivo", "tamanoArchivoBytes"],
+        "properties": {
+          "idCreador": { "type": "string" },
+          "nombreArchivo": { "type": "string" },
+          "tamanoArchivoBytes": { "type": "integer", "format": "int64" },
+          "modo": { "type": "string", "enum": ["COMPLETA", "MULTIPARTE"], "default": "COMPLETA" }
+        }
+      },
+      "ProgresoSubida": {
+        "type": "object",
+        "properties": {
+          "idSubida": { "type": "string" },
+          "numeroParte": { "type": "integer" },
+          "porcentajeCompletado": { "type": "number", "format": "float" }
+        }
+      },
+      "ActivoDeVideo": {
+        "type": "object",
+        "description": "Raiz del Agregado (Aggregate Root) de este Bounded Context. Representa el video como archivo tecnico, NUNCA como producto editorial.",
+        "properties": {
+          "idActivo": { "type": "string" },
+          "idCreador": { "type": "string" },
+          "estadoSubida": { "type": "string", "enum": ["PENDIENTE", "EN_CURSO", "COMPLETADA", "CANCELADA"] },
+          "estadoProcesamiento": { "type": "string", "enum": ["NO_INICIADO", "PENDIENTE", "EN_CURSO", "COMPLETADO", "FALLIDO"] },
+          "duracionSegundos": { "type": "integer", "nullable": true },
+          "calidadesDisponibles": { "type": "array", "items": { "type": "string" } },
+          "creadoEn": { "type": "string", "format": "date-time" }
+        }
+      },
+      "RespuestaEstadoProcesamiento": {
+        "type": "object",
+        "properties": {
+          "idActivo": { "type": "string" },
+          "estadoProcesamiento": { "type": "string", "enum": ["PENDIENTE", "EN_CURSO", "COMPLETADO", "FALLIDO"] },
+          "trabajos": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/TrabajoTranscodificacion" }
+          }
+        }
+      },
+      "TrabajoTranscodificacion": {
+        "type": "object",
+        "description": "Entidad parte del agregado ActivoDeVideo, relacion de composicion (no existe sin su activo).",
+        "properties": {
+          "idTrabajo": { "type": "string" },
+          "calidadObjetivo": { "type": "string", "example": "720p" },
+          "estado": { "type": "string", "enum": ["PENDIENTE", "EN_CURSO", "COMPLETADO", "FALLIDO"] }
+        }
+      },
+      "InfoReproduccion": {
+        "type": "object",
+        "properties": {
+          "idActivo": { "type": "string" },
+          "urlStream": { "type": "string", "format": "uri" },
+          "calidadesDisponibles": { "type": "array", "items": { "type": "string" } },
+          "calidadRecomendada": { "type": "string" }
+        }
+      },
+      "SolicitudCrearSesionReproduccion": {
+        "type": "object",
+        "required": ["idActivo", "idEspectador"],
+        "properties": {
+          "idActivo": { "type": "string" },
+          "idEspectador": { "type": "string" },
+          "dispositivo": { "type": "string", "enum": ["MOVIL", "ESCRITORIO", "TV", "WEB"] }
+        }
+      },
+      "SolicitudCompletarSesionReproduccion": {
+        "type": "object",
+        "properties": {
+          "segundosVistos": { "type": "integer" },
+          "interrupciones": { "type": "integer" },
+          "calidadFinal": { "type": "string" }
+        }
+      },
+      "SesionReproduccion": {
+        "type": "object",
+        "description": "Entidad del agregado ActivoDeVideo. Cardinalidad 1 ActivoDeVideo -- 0..* SesionReproduccion.",
+        "properties": {
+          "idSesion": { "type": "string" },
+          "idActivo": { "type": "string" },
+          "idEspectador": { "type": "string" },
+          "calidad": { "type": "string" },
+          "estado": { "type": "string", "enum": ["ACTIVA", "COMPLETADA"] },
+          "iniciadaEn": { "type": "string", "format": "date-time" },
+          "segundosVistos": { "type": "integer", "nullable": true }
+        }
+      },
+      "SolicitudCrearTransmisionEnVivo": {
+        "type": "object",
+        "required": ["idCreador", "titulo"],
+        "properties": {
+          "idCreador": { "type": "string" },
+          "titulo": { "type": "string" }
+        }
+      },
+      "TransmisionEnVivo": {
+        "type": "object",
+        "properties": {
+          "idTransmision": { "type": "string" },
+          "idCreador": { "type": "string" },
+          "estado": { "type": "string", "enum": ["CONFIGURADA", "EN_VIVO", "PAUSADA", "FINALIZADA"] },
+          "urlIngesta": { "type": "string" },
+          "claveTransmision": { "type": "string" },
+          "idActivoGrabado": { "type": "string", "nullable": true }
+        }
+      },
+      "RespuestaListaActivos": {
+        "type": "object",
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/ActivoDeVideo" } },
+          "pagina": { "type": "integer" },
+          "tamanoPagina": { "type": "integer" },
+          "totalItems": { "type": "integer" }
+        }
+      },
+      "RespuestaError": {
+        "type": "object",
+        "properties": {
+          "codigo": { "type": "string", "example": "ACTIVO_NO_LISTO" },
+          "mensaje": { "type": "string", "example": "El activo aun no completo su procesamiento." },
+          "marcaTiempo": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+    "responses": {
+      "SolicitudInvalida": {
+        "description": "Solicitud invalida.",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RespuestaError" } } }
+      },
+      "NoAutorizado": {
+        "description": "No autenticado.",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RespuestaError" } } }
+      },
+      "NoEncontrado": {
+        "description": "Recurso no encontrado.",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RespuestaError" } } }
+      }
+    },
+    "securitySchemes": {
+      "autenticacionBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Token emitido por el sistema de identidad compartido (Google Account). El claim 'rol' distingue creador/espectador/sistema."
+      }
+    }
+  }
+}

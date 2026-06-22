@@ -1,0 +1,392 @@
+{
+  "openapi": "3.0.4",
+  "info": {
+    "title": "BC6 - Publicidad y Marketplace de Anunciantes",
+    "description": "Responsabilidad central: gestionar el negocio publicitario B2B: campanas, inventario, targeting, entrega de anuncios e ingresos para la plataforma.\n\nEste contexto trata al video como EspacioPublicitario (slot/oportunidad de insercion de un anuncio), NUNCA como archivo tecnico ni como producto editorial. El cliente principal es el ANUNCIANTE, no el creador.\n\nAlcance (Si): anunciantes, campanas, creativos, decisiones de anuncio, impresiones, facturacion.\nAlcance (No): pagar al creador directamente (eso es Monetizacion BC5), comentarios, recomendaciones.\n\nError tipico a evitar (segun el profesor): Publicidad NUNCA paga directamente al creador. Cuando se confirma una impresion facturable, este contexto emite un evento que Monetizacion consume para repartir ingresos.\n\nEventos que EMITE: AnuncioServido, ImpresionFacturableConfirmada, IngresoPublicitarioConfirmado (consumido por Monetizacion), PresupuestoCampanaAgotado.\nEventos que CONSUME: ItemPublicado/ItemRestringido (desde Catalogo, para inventario), SenalEngagementAgregada (desde Audiencia/Descubrimiento, para brand safety).\n\nRequisitos funcionales cubiertos: RF-F1 (anunciantes), RF-F2 (campanas), RF-F3 (creativos), RF-F4 (targeting), RF-F5 (inventario), RF-F6 (entrega de anuncios), RF-F7 (medicion), RF-F8 (reporting).",
+    "version": "1.0.0",
+    "contact": { "name": "Equipo BC6 - Publicidad", "email": "bc6-publicidad@proyecto-youtube.uoh.cl" }
+  },
+  "servers": [
+    { "url": "https://api.youtube-ddd.local/publicidad/v1", "description": "Servidor del Bounded Context Publicidad y Marketplace de Anunciantes" }
+  ],
+  "tags": [
+    { "name": "anunciantes", "description": "RF-F1: Gestion de anunciantes" },
+    { "name": "campanas", "description": "RF-F2: Campanas" },
+    { "name": "creativos", "description": "RF-F3: Creativos publicitarios" },
+    { "name": "targeting", "description": "RF-F4: Targeting" },
+    { "name": "inventario", "description": "RF-F5: Inventario publicitario" },
+    { "name": "entrega-anuncios", "description": "RF-F6: Entrega de anuncios" },
+    { "name": "medicion", "description": "RF-F7: Medicion" },
+    { "name": "reportes", "description": "RF-F8: Reportes para anunciantes" }
+  ],
+  "paths": {
+    "/anunciantes": {
+      "post": {
+        "tags": ["anunciantes"],
+        "summary": "Registrar cuenta de anunciante.",
+        "description": "RF-F1: El sistema debe permitir registrar cuentas de anunciantes.",
+        "operationId": "crearAnunciante",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SolicitudCrearAnunciante" },
+              "example": { "nombreEmpresa": "Acme Corp", "correoFacturacion": "billing@acme.com" }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Anunciante registrado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Anunciante" } } } } }
+      }
+    },
+    "/anunciantes/{idAnunciante}/facturacion": {
+      "put": {
+        "tags": ["anunciantes"],
+        "summary": "Administrar datos de facturacion.",
+        "description": "RF-F1: El sistema debe permitir administrar datos de facturacion del anunciante.",
+        "operationId": "actualizarFacturacionAnunciante",
+        "parameters": [{ "name": "idAnunciante", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InfoFacturacion" } } } },
+        "responses": { "200": { "description": "Datos de facturacion actualizados." } },
+        "security": [{ "autenticacionBearer": ["anunciante"] }]
+      }
+    },
+    "/campanas": {
+      "post": {
+        "tags": ["campanas"],
+        "summary": "Crear campana.",
+        "description": "RF-F2: El sistema debe permitir crear campanas con objetivo, presupuesto y vigencia.",
+        "operationId": "crearCampana",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SolicitudCrearCampana" },
+              "example": { "idAnunciante": "anu-12cd34", "objetivo": "RECONOCIMIENTO_MARCA", "presupuestoUsd": 5000.00, "fechaInicio": "2026-07-01", "fechaTermino": "2026-07-31" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Campana creada.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Campana" },
+                "example": { "idCampana": "cam-77ee10", "idAnunciante": "anu-12cd34", "estado": "ACTIVA", "presupuestoUsd": 5000.00, "gastadoUsd": 0.00 }
+              }
+            }
+          }
+        },
+        "security": [{ "autenticacionBearer": ["anunciante"] }]
+      }
+    },
+    "/campanas/{idCampana}/pausar": {
+      "post": {
+        "tags": ["campanas"],
+        "summary": "Pausar campana.",
+        "description": "RF-F2: El sistema debe permitir pausar, reanudar y finalizar campanas.",
+        "operationId": "pausarCampana",
+        "parameters": [{ "name": "idCampana", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Campana pausada.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Campana" } } } } },
+        "security": [{ "autenticacionBearer": ["anunciante"] }]
+      }
+    },
+    "/campanas/{idCampana}/reanudar": {
+      "post": {
+        "tags": ["campanas"],
+        "summary": "Reanudar campana.",
+        "operationId": "reanudarCampana",
+        "parameters": [{ "name": "idCampana", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Campana reanudada.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Campana" } } } } },
+        "security": [{ "autenticacionBearer": ["anunciante"] }]
+      }
+    },
+    "/campanas/{idCampana}/finalizar": {
+      "post": {
+        "tags": ["campanas"],
+        "summary": "Finalizar campana.",
+        "operationId": "finalizarCampana",
+        "parameters": [{ "name": "idCampana", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Campana finalizada.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Campana" } } } } },
+        "security": [{ "autenticacionBearer": ["anunciante"] }]
+      }
+    },
+    "/campanas/{idCampana}/creativos": {
+      "post": {
+        "tags": ["creativos"],
+        "summary": "Subir y asociar un creativo.",
+        "description": "RF-F3: El sistema debe permitir subir y registrar creativos (video, display, etc.), asociarlos a campanas y validarlos segun politicas publicitarias.",
+        "operationId": "subirCreativo",
+        "parameters": [{ "name": "idCampana", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SolicitudCrearCreativo" },
+              "example": { "tipo": "VIDEO", "urlActivo": "https://cdn.youtube-ddd.local/ads/creativo-001.mp4", "duracionSegundos": 15 }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Creativo registrado y en validacion.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Creativo" } } } } },
+        "security": [{ "autenticacionBearer": ["anunciante"] }]
+      },
+      "get": {
+        "tags": ["creativos"],
+        "summary": "Listar creativos de la campana.",
+        "operationId": "listarCreativos",
+        "parameters": [{ "name": "idCampana", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Lista de creativos.", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Creativo" } } } } } }
+      }
+    },
+    "/campanas/{idCampana}/targeting": {
+      "put": {
+        "tags": ["targeting"],
+        "summary": "Definir criterios de segmentacion.",
+        "description": "RF-F4: El sistema debe permitir definir criterios de segmentacion (pais, edad, intereses, categoria de contenido, etc.).",
+        "operationId": "definirTargeting",
+        "parameters": [{ "name": "idCampana", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CriteriosTargeting" },
+              "example": { "paises": ["CL", "AR"], "edadMinima": 18, "intereses": ["TECNOLOGIA"], "categoriasContenido": ["EDUCACION"] }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Targeting actualizado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CriteriosTargeting" } } } } },
+        "security": [{ "autenticacionBearer": ["anunciante"] }]
+      }
+    },
+    "/campanas/{idCampana}/targeting/estimacion-inventario": {
+      "get": {
+        "tags": ["targeting"],
+        "summary": "Estimar inventario disponible.",
+        "description": "RF-F4: El sistema debe estimar inventario disponible segun targeting.",
+        "operationId": "estimarInventario",
+        "parameters": [{ "name": "idCampana", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Estimacion de inventario.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EstimacionInventario" }, "example": { "impresionesDiariasEstimadas": 184000 } } } }
+        },
+        "security": [{ "autenticacionBearer": ["anunciante"] }]
+      }
+    },
+    "/espacios-publicitarios/{idCandidato}/elegibilidad": {
+      "get": {
+        "tags": ["inventario"],
+        "summary": "Determinar si un contenido es elegible para mostrar anuncios.",
+        "description": "RF-F5: El sistema debe determinar que contenidos son elegibles para mostrar anuncios, respetando restricciones del catalogo (contenido no monetizable, restringido, etc.).",
+        "operationId": "verificarElegibilidadEspacio",
+        "parameters": [{ "name": "idCandidato", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": {
+            "description": "Resultado de elegibilidad del EspacioPublicitario.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ElegibilidadEspacio" }, "example": { "idCandidato": "itm-30bf77", "esElegible": true, "razon": null } } }
+          }
+        }
+      }
+    },
+    "/decisiones-anuncio": {
+      "post": {
+        "tags": ["entrega-anuncios"],
+        "summary": "Decidir que anuncio mostrar.",
+        "description": "RF-F6: Ante una oportunidad de visualizacion, el sistema debe decidir que anuncio mostrar (o ninguno), considerando campanas activas, targeting, subasta/prioridad y brand safety. Soporta formatos pre-roll, mid-roll, display.",
+        "operationId": "decidirAnuncio",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SolicitudDecisionAnuncio" },
+              "example": { "idCandidato": "itm-30bf77", "idEspectador": "usr-44aa21", "formatoEspacio": "PRE_ROLL", "paisEspectador": "CL" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Decision de anuncio tomada.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/DecisionAnuncio" },
+                "example": { "idDecision": "dec-55aa11", "idCampana": "cam-77ee10", "idCreativo": "crv-90bb22", "formatoEspacio": "PRE_ROLL" }
+              }
+            }
+          },
+          "204": { "description": "No hay anuncio elegible para esta oportunidad." }
+        }
+      }
+    },
+    "/impresiones": {
+      "post": {
+        "tags": ["medicion"],
+        "summary": "Registrar impresion servida.",
+        "description": "RF-F7: El sistema debe registrar impresiones servidas, clicks y skips, y calcular gasto de campana. Emite evento AnuncioServido y, si es facturable, ImpresionFacturableConfirmada.",
+        "operationId": "registrarImpresion",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SolicitudRegistrarImpresion" },
+              "example": { "idDecision": "dec-55aa11", "fueOmitido": false, "fueClickeado": false }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Impresion registrada y gasto actualizado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Impresion" } } } } }
+      }
+    },
+    "/campanas/{idCampana}/metricas": {
+      "get": {
+        "tags": ["reportes"],
+        "summary": "Exponer metricas de campana.",
+        "description": "RF-F8: El sistema debe exponer metricas de campana: impresiones, CTR, CPM, gasto.",
+        "operationId": "obtenerMetricasCampana",
+        "parameters": [{ "name": "idCampana", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": {
+            "description": "Metricas agregadas de la campana.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MetricasCampana" },
+                "example": { "idCampana": "cam-77ee10", "impresiones": 184320, "clicks": 2104, "ctr": 1.14, "cpmUsd": 4.20, "gastadoUsd": 774.14 }
+              }
+            }
+          }
+        },
+        "security": [{ "autenticacionBearer": ["anunciante"] }]
+      }
+    },
+    "/campanas/{idCampana}/facturas": {
+      "get": {
+        "tags": ["reportes"],
+        "summary": "Generar factura para el anunciante.",
+        "description": "RF-F8: El sistema debe generar reportes e invoices para el anunciante.",
+        "operationId": "obtenerFacturasCampana",
+        "parameters": [{ "name": "idCampana", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Lista de facturas.", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Factura" } } } } } },
+        "security": [{ "autenticacionBearer": ["anunciante"] }]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "SolicitudCrearAnunciante": {
+        "type": "object",
+        "required": ["nombreEmpresa", "correoFacturacion"],
+        "properties": { "nombreEmpresa": { "type": "string" }, "correoFacturacion": { "type": "string", "format": "email" } }
+      },
+      "Anunciante": {
+        "type": "object",
+        "description": "Entidad raiz de cuenta B2B. Distinta de Canal (BC2) y MiembroComunidad (BC4): aqui 'cuenta' significa cliente de negocio.",
+        "properties": { "idAnunciante": { "type": "string" }, "nombreEmpresa": { "type": "string" }, "correoFacturacion": { "type": "string" } }
+      },
+      "InfoFacturacion": {
+        "type": "object",
+        "properties": { "rut": { "type": "string" }, "direccion": { "type": "string" }, "metodoPago": { "type": "string" } }
+      },
+      "SolicitudCrearCampana": {
+        "type": "object",
+        "required": ["idAnunciante", "objetivo", "presupuestoUsd", "fechaInicio", "fechaTermino"],
+        "properties": {
+          "idAnunciante": { "type": "string" },
+          "objetivo": { "type": "string", "enum": ["RECONOCIMIENTO_MARCA", "TRAFICO", "CONVERSIONES"] },
+          "presupuestoUsd": { "type": "number", "format": "float" },
+          "fechaInicio": { "type": "string", "format": "date" },
+          "fechaTermino": { "type": "string", "format": "date" }
+        }
+      },
+      "Campana": {
+        "type": "object",
+        "description": "Raiz del Agregado (Aggregate Root) de este Bounded Context. Controla Creativo y DecisionAnuncio (composicion).",
+        "properties": {
+          "idCampana": { "type": "string" },
+          "idAnunciante": { "type": "string" },
+          "estado": { "type": "string", "enum": ["ACTIVA", "PAUSADA", "FINALIZADA", "PRESUPUESTO_AGOTADO"] },
+          "presupuestoUsd": { "type": "number" },
+          "gastadoUsd": { "type": "number" }
+        }
+      },
+      "SolicitudCrearCreativo": {
+        "type": "object",
+        "required": ["tipo", "urlActivo"],
+        "properties": { "tipo": { "type": "string", "enum": ["VIDEO", "DISPLAY"] }, "urlActivo": { "type": "string" }, "duracionSegundos": { "type": "integer" } }
+      },
+      "Creativo": {
+        "type": "object",
+        "description": "Entidad parte del agregado Campana (composicion).",
+        "properties": {
+          "idCreativo": { "type": "string" },
+          "idCampana": { "type": "string" },
+          "tipo": { "type": "string" },
+          "urlActivo": { "type": "string" },
+          "estadoValidacion": { "type": "string", "enum": ["PENDIENTE", "APROBADO", "RECHAZADO"] }
+        }
+      },
+      "CriteriosTargeting": {
+        "type": "object",
+        "description": "Objeto de Valor (Value Object) embebido en Campana.",
+        "properties": {
+          "paises": { "type": "array", "items": { "type": "string" } },
+          "edadMinima": { "type": "integer" },
+          "intereses": { "type": "array", "items": { "type": "string" } },
+          "categoriasContenido": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "EstimacionInventario": {
+        "type": "object",
+        "properties": { "impresionesDiariasEstimadas": { "type": "integer" } }
+      },
+      "ElegibilidadEspacio": {
+        "type": "object",
+        "properties": { "idCandidato": { "type": "string" }, "esElegible": { "type": "boolean" }, "razon": { "type": "string", "nullable": true } }
+      },
+      "SolicitudDecisionAnuncio": {
+        "type": "object",
+        "required": ["idCandidato", "idEspectador", "formatoEspacio"],
+        "properties": {
+          "idCandidato": { "type": "string", "description": "Referencia al EspacioPublicitario, modelo propio de este contexto." },
+          "idEspectador": { "type": "string" },
+          "formatoEspacio": { "type": "string", "enum": ["PRE_ROLL", "MID_ROLL", "DISPLAY"] },
+          "paisEspectador": { "type": "string" }
+        }
+      },
+      "DecisionAnuncio": {
+        "type": "object",
+        "properties": {
+          "idDecision": { "type": "string" },
+          "idCampana": { "type": "string" },
+          "idCreativo": { "type": "string" },
+          "formatoEspacio": { "type": "string" }
+        }
+      },
+      "SolicitudRegistrarImpresion": {
+        "type": "object",
+        "required": ["idDecision"],
+        "properties": { "idDecision": { "type": "string" }, "fueOmitido": { "type": "boolean" }, "fueClickeado": { "type": "boolean" } }
+      },
+      "Impresion": {
+        "type": "object",
+        "properties": { "idImpresion": { "type": "string" }, "idDecision": { "type": "string" }, "esFacturable": { "type": "boolean" }, "servidaEn": { "type": "string", "format": "date-time" } }
+      },
+      "MetricasCampana": {
+        "type": "object",
+        "properties": {
+          "idCampana": { "type": "string" },
+          "impresiones": { "type": "integer" },
+          "clicks": { "type": "integer" },
+          "ctr": { "type": "number", "description": "Tasa de clicks en porcentaje (click-through rate)." },
+          "cpmUsd": { "type": "number", "description": "Costo por mil impresiones." },
+          "gastadoUsd": { "type": "number" }
+        }
+      },
+      "Factura": {
+        "type": "object",
+        "properties": { "idFactura": { "type": "string" }, "idCampana": { "type": "string" }, "montoUsd": { "type": "number" }, "emitidaEn": { "type": "string", "format": "date-time" } }
+      },
+      "RespuestaError": {
+        "type": "object",
+        "properties": { "codigo": { "type": "string" }, "mensaje": { "type": "string" }, "marcaTiempo": { "type": "string", "format": "date-time" } }
+      }
+    },
+    "securitySchemes": {
+      "autenticacionBearer": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    }
+  }
+}
