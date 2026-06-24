@@ -1,0 +1,146 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="BC6 - decisiones-anuncio e impresiones" id="bc6seq">
+    <mxGraphModel dx="1334" dy="816" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="1750" background="#ffffff" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=20;fontStyle=1;" value="BC6 · POST /decisiones-anuncio y POST /impresiones" vertex="1">
+          <mxGeometry height="30" width="840" x="280" y="10" as="geometry" />
+        </mxCell>
+        <mxCell id="lh_esp" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontStyle=1;fontSize=14;arcSize=10;" value="Espectador" vertex="1">
+          <mxGeometry height="50" width="170" x="40" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="lh_bc6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fce4d6;strokeColor=#c0504d;fontStyle=1;fontSize=14;arcSize=10;" value="BC6 Campana&#xa;decidirAnuncio()" vertex="1">
+          <mxGeometry height="50" width="220" x="320" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="lh_bc2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=14;arcSize=10;" value="BC2 Catalogo&#xa;elegibilidad" vertex="1">
+          <mxGeometry height="50" width="200" x="660" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="lh_bc5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e2efda;strokeColor=#548235;fontStyle=1;fontSize=14;arcSize=10;" value="BC5&#xa;Monetizacion" vertex="1">
+          <mxGeometry height="50" width="200" x="990" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_esp" edge="1" parent="1" style="endArrow=none;dashed=1;html=1;strokeColor=#999999;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="125" y="110" as="sourcePoint" />
+            <mxPoint x="125" y="1620" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ll_bc6" edge="1" parent="1" style="endArrow=none;dashed=1;html=1;strokeColor=#999999;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="430" y="110" as="sourcePoint" />
+            <mxPoint x="430" y="1620" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ll_bc2" edge="1" parent="1" style="endArrow=none;dashed=1;html=1;strokeColor=#999999;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="760" y="110" as="sourcePoint" />
+            <mxPoint x="760" y="1620" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ll_bc5" edge="1" parent="1" style="endArrow=none;dashed=1;html=1;strokeColor=#999999;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1090" y="110" as="sourcePoint" />
+            <mxPoint x="1090" y="1620" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="band1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f0f5e8;strokeColor=none;fontStyle=1;fontSize=12;align=left;spacingLeft=10;" value="1: GET /espacios-publicitarios/{idCandidato}/elegibilidad" vertex="1">
+          <mxGeometry height="26" width="345" x="130" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="msg1" edge="1" parent="1" style="html=1;endArrow=block;elbow=vertical;startArrow=none;dashed=0;strokeColor=#333333;rounded=0;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="125" y="185" as="sourcePoint" />
+            <mxPoint x="430" y="185" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_verif" edge="1" parent="1" style="html=1;endArrow=block;elbow=vertical;startArrow=none;dashed=0;strokeColor=#333333;fontSize=11;align=center;verticalAlign=bottom;rounded=0;" value="verifica con BC2 Catalogo → GET /catalogo/items/{idItem}/visibilidad">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="430" y="225" as="sourcePoint" />
+            <mxPoint x="760" y="225" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_verif_ret" edge="1" parent="1" style="html=1;endArrow=open;elbow=vertical;startArrow=none;dashed=1;strokeColor=#333333;fontSize=11;align=center;verticalAlign=top;rounded=0;" value="200 { visible: true, monetizable: true }">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="760" y="255" as="sourcePoint" />
+            <mxPoint x="430" y="255" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg2" edge="1" parent="1" style="html=1;endArrow=open;elbow=vertical;startArrow=none;dashed=1;strokeColor=#333333;fontSize=11;align=center;verticalAlign=top;rounded=0;" value="2: 200 OK { idCandidato: &quot;itm-30bf77&quot;, esElegible: true, razon: null }">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="430" y="290" as="sourcePoint" />
+            <mxPoint x="125" y="290" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="band3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f0f5e8;strokeColor=none;fontStyle=1;fontSize=12;align=left;spacingLeft=10;" value="3: POST /decisiones-anuncio { idCandidato: &quot;itm-30bf77&quot;, idEspectador: &quot;usr-44aa21&quot;, formatoEspacio: &quot;PRE_ROLL&quot; }" vertex="1">
+          <mxGeometry height="26" width="715" x="75" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="msg3" edge="1" parent="1" style="html=1;endArrow=block;elbow=vertical;startArrow=none;dashed=0;strokeColor=#333333;rounded=0;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="125" y="365" as="sourcePoint" />
+            <mxPoint x="430" y="365" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="actbar1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f4b183;strokeColor=#c0504d;" value="" vertex="1">
+          <mxGeometry height="190" width="20" x="420" y="375" as="geometry" />
+        </mxCell>
+        <mxCell id="note_decide" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;" value="decidirAnuncio() — tieneBudgetDisponible() → true&#xa;selecciona Creativo aprobado de Campana activa&#xa;crea DecisionAnuncio { idDecision: &quot;dec-55aa11&quot; }" vertex="1">
+          <mxGeometry height="60" width="650" x="460" y="380" as="geometry" />
+        </mxCell>
+        <mxCell id="msg4" edge="1" parent="1" style="html=1;endArrow=open;elbow=vertical;startArrow=none;dashed=1;strokeColor=#333333;fontSize=11;align=center;verticalAlign=top;rounded=0;" value="4: 200 OK { idDecision: &quot;dec-55aa11&quot;, idCampana: &quot;cam-77ee10&quot;, idCreativo: &quot;crv-90bb22&quot;, formatoEspacio: &quot;PRE_ROLL&quot; }">
+          <mxGeometry relative="1" x="-0.2542" y="10" as="geometry">
+            <mxPoint x="1" as="offset" />
+            <mxPoint x="420" y="540" as="sourcePoint" />
+            <mxPoint x="125" y="540" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="band5" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f0f5e8;strokeColor=none;fontStyle=1;fontSize=12;align=left;spacingLeft=10;" value="5: POST /impresiones (espectador confirmo que vio el anuncio)" vertex="1">
+          <mxGeometry height="26" width="380" x="40" y="580" as="geometry" />
+        </mxCell>
+        <mxCell id="msg5label" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#666666;" value="{ idDecision: &quot;dec-55aa11&quot;, fueOmitido: false, fueClickeado: false }" vertex="1">
+          <mxGeometry height="20" width="500" x="40" y="608" as="geometry" />
+        </mxCell>
+        <mxCell id="msg5" edge="1" parent="1" style="html=1;endArrow=block;elbow=vertical;startArrow=none;dashed=0;strokeColor=#333333;rounded=0;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="125" y="635" as="sourcePoint" />
+            <mxPoint x="430" y="635" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="actbar2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f4b183;strokeColor=#c0504d;" value="" vertex="1">
+          <mxGeometry height="120" width="20" x="420" y="645" as="geometry" />
+        </mxCell>
+        <mxCell id="note_confirm" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;" value="6: confirmarServido() → esFacturable: true&#xa;calcula gastadoUsd en Campana (registrarImpresion)" vertex="1">
+          <mxGeometry height="50" width="650" x="460" y="650" as="geometry" />
+        </mxCell>
+        <mxCell id="msg_imp_ret" edge="1" parent="1" style="html=1;endArrow=open;elbow=vertical;startArrow=none;dashed=1;strokeColor=#333333;fontSize=11;align=center;verticalAlign=top;rounded=0;" value="201 Created { idImpresion: &quot;imp-77cc33&quot;, esFacturable: true }">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="420" y="780" as="sourcePoint" />
+            <mxPoint x="125" y="780" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="band7" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f0f5e8;strokeColor=none;fontStyle=1;fontSize=12;align=left;spacingLeft=10;" value="7: evento async → BC5 (IngresoPublicitarioConfirmado)" vertex="1">
+          <mxGeometry height="26" width="640" x="440" y="834" as="geometry" />
+        </mxCell>
+        <mxCell id="msg7label" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=11;fontColor=#c0504d;" value="«event» IngresoPublicitarioConfirmado" vertex="1">
+          <mxGeometry height="20" width="660" x="430" y="860" as="geometry" />
+        </mxCell>
+        <mxCell id="msg7" edge="1" parent="1" style="html=1;endArrow=open;elbow=vertical;startArrow=none;dashed=1;strokeColor=#c0504d;rounded=0;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="430" y="885" as="sourcePoint" />
+            <mxPoint x="1090" y="885" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg7payload" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=11;fontColor=#666666;" value="{ idCanal: &quot;can-55ee10&quot;, montoBrutoUsd: 12.40, idCampana: &quot;cam-77ee10&quot; }" vertex="1">
+          <mxGeometry height="20" width="660" x="430" y="895" as="geometry" />
+        </mxCell>
+        <mxCell id="msg7ack" edge="1" parent="1" style="html=1;endArrow=open;elbow=vertical;startArrow=none;dashed=1;strokeColor=#999999;fontSize=11;align=center;verticalAlign=top;rounded=0;fontColor=#999999;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1090" y="925" as="sourcePoint" />
+            <mxPoint x="430" y="925" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="noteframe" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;fontSize=12;align=center;verticalAlign=middle;arcSize=4;" value="Donde se ve en los archivos JSON: SolicitudDecisionAnuncio, DecisionAnuncio, Impresion.&#xa;idCandidato y formatoEspacio son atributos exactos de DecisionAnuncio en el UML BC6.&#xa;El payload del evento async (idCanal, montoBrutoUsd) coincide exactamente con SolicitudCrearEventoIngreso de BC5 (idCanal, origen, montoBrutoUsd); BC5 solo agrega el campo origen=&quot;PUBLICIDAD&quot; al recibirlo." vertex="1">
+          <mxGeometry height="90" width="1150" x="40" y="960" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
