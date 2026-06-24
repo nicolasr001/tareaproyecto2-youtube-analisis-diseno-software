@@ -1,0 +1,278 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1100" math="0" shadow="0">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+
+    <!-- Title -->
+    <mxCell id="title" value="Diagrama de Clases: Search — BC3 Descubrimiento y Personalización" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=16;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="40" y="10" width="1000" height="30" as="geometry"/>
+    </mxCell>
+
+    <!-- ============ SearchService ============ -->
+    <mxCell id="cSearchService" value="SearchService" style="swimlane;html=1;childLayout=stackLayout;horizontal=1;startSize=30;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=13;align=center;" vertex="1" parent="1">
+      <mxGeometry x="560" y="80" width="280" height="100" as="geometry"/>
+    </mxCell>
+    <mxCell id="ss1" value="«domain service»" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=10;fontStyle=2;" vertex="1" parent="cSearchService">
+      <mxGeometry y="30" width="280" height="16" as="geometry"/>
+    </mxCell>
+    <mxCell id="ss2" value="+ searchContent(query: SearchQuery): SearchResultResponse" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="cSearchService">
+      <mxGeometry y="46" width="280" height="26" as="geometry"/>
+    </mxCell>
+    <mxCell id="ss3" value="+ getSuggestions(q: String): SuggestionsResponse" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="cSearchService">
+      <mxGeometry y="72" width="280" height="26" as="geometry"/>
+    </mxCell>
+
+    <!-- ============ SearchQuery ============ -->
+    <mxCell id="cSearchQuery" value="SearchQuery" style="swimlane;html=1;childLayout=stackLayout;horizontal=1;startSize=30;fillColor=#f5f5f5;strokeColor=#666666;fontStyle=1;fontSize=13;align=center;" vertex="1" parent="1">
+      <mxGeometry x="40" y="80" width="240" height="180" as="geometry"/>
+    </mxCell>
+    <mxCell id="sq0" value="«value object»" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=10;fontStyle=2;" vertex="1" parent="cSearchQuery">
+      <mxGeometry y="30" width="240" height="16" as="geometry"/>
+    </mxCell>
+    <mxCell id="sq1" value="+ q: String" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="cSearchQuery">
+      <mxGeometry y="46" width="240" height="20" as="geometry"/>
+    </mxCell>
+    <mxCell id="sq2" value="+ type: ResultType" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="cSearchQuery">
+      <mxGeometry y="66" width="240" height="20" as="geometry"/>
+    </mxCell>
+    <mxCell id="sq3" value="+ sortBy: SortCriteria" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="cSearchQuery">
+      <mxGeometry y="86" width="240" height="20" as="geometry"/>
+    </mxCell>
+    <mxCell id="sq4" value="+ uploadDateFilter: String" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="cSearchQuery">
+      <mxGeometry y="106" width="240" height="20" as="geometry"/>
+    </mxCell>
+    <mxCell id="sq5" value="+ durationFilter: String" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="cSearchQuery">
+      <mxGeometry y="126" width="240" height="20" as="geometry"/>
+    </mxCell>
+    <mxCell id="sq6" value="+ page: Int" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="cSearchQuery">
+      <mxGeometry y="146" width="240" height="20" as="geometry"/>
+    </mxCell>
+    <mxCell id="sq7" value="+ pageSize: Int" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="cSearchQuery">
+      <mxGeometry y="166" width="240" height="20" as="geometry"/>
+    </mxCell>
+
+    <!-- ============ SearchResultResponse ============ -->
+    <mxCell id="cResp" value="SearchResultResponse" style="swimlane;html=1;childLayout=stackLayout;horizontal=1;startSize=30;fillColor=#f5f5f5;strokeColor=#666666;fontStyle=1;fontSize=13;align=center;" vertex="1" parent="1">
+      <mxGeometry x="940" y="80" width="260" height="140" as="geometry"/>
+    </mxCell>
+    <mxCell id="sr0" value="«DTO»" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=10;fontStyle=2;" vertex="1" parent="cResp">
+      <mxGeometry y="30" width="260" height="16" as="geometry"/>
+    </mxCell>
+    <mxCell id="sr1" value="+ query: String" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="cResp">
+      <mxGeometry y="46" width="260" height="20" as="geometry"/>
+    </mxCell>
+    <mxCell id="sr2" value="+ results: List&lt;RecommendationCandidate&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="cResp">
+      <mxGeometry y="66" width="260" height="20" as="geometry"/>
+    </mxCell>
+    <mxCell id="sr3" value="+ page: Int" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="cResp">
+      <mxGeometry y="86" width="260" height="20" as="geometry"/>
+    </mxCell>
+    <mxCell id="sr4" value="+ pageSize: Int" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="cResp">
+      <mxGeometry y="106" width="260" height="20" as="geometry"/>
+    </mxCell>
+    <mxCell id="sr5" value="+ totalResults: Int" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="cResp">
+      <mxGeometry y="126" width="260" height="20" as="geometry"/>
+    </mxCell>
+
+    <!-- ============ RecommendationCandidate (Aggregate Root) ============ -->
+    <mxCell id="cCandidate" value="RecommendationCandidate" style="swimlane;html=1;childLayout=stackLayout;horizontal=1;startSize=30;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=13;align=center;" vertex="1" parent="1">
+      <mxGeometry x="940" y="280" width="280" height="220" as="geometry"/>
+    </mxCell>
+    <mxCell id="cc0" value="«aggregate root»" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=10;fontStyle=2;" vertex="1" parent="cCandidate">
+      <mxGeometry y="30" width="280" height="16" as="geometry"/>
+    </mxCell>
+    <mxCell id="cc1" value="+ candidateId: String" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="cCandidate">
+      <mxGeometry y="46" width="280" height="20" as="geometry"/>
+    </mxCell>
+    <mxCell id="cc2" value="+ type: ResultType" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="cCandidate">
+      <mxGeometry y="66" width="280" height="20" as="geometry"/>
+    </mxCell>
+    <mxCell id="cc3" value="+ relevanceScore: Float" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="cCandidate">
+      <mxGeometry y="86" width="280" height="20" as="geometry"/>
+    </mxCell>
+    <mxCell id="cc4" value="+ category: String" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="cCandidate">
+      <mxGeometry y="106" width="280" height="20" as="geometry"/>
+    </mxCell>
+    <mxCell id="cc5" value="+ title: String" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="cCandidate">
+      <mxGeometry y="126" width="280" height="20" as="geometry"/>
+    </mxCell>
+    <mxCell id="cc6" value="+ channelId: String" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="cCandidate">
+      <mxGeometry y="146" width="280" height="20" as="geometry"/>
+    </mxCell>
+    <mxCell id="cc7" value="+ durationSeconds: Int" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="cCandidate">
+      <mxGeometry y="166" width="280" height="20" as="geometry"/>
+    </mxCell>
+    <mxCell id="cc8" value="+ publishedAt: DateTime" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="cCandidate">
+      <mxGeometry y="186" width="280" height="20" as="geometry"/>
+    </mxCell>
+
+    <!-- ============ RankingEngine ============ -->
+    <mxCell id="cRanking" value="RankingEngine" style="swimlane;html=1;childLayout=stackLayout;horizontal=1;startSize=30;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=13;align=center;" vertex="1" parent="1">
+      <mxGeometry x="560" y="280" width="280" height="80" as="geometry"/>
+    </mxCell>
+    <mxCell id="re0" value="«domain service»" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=10;fontStyle=2;" vertex="1" parent="cRanking">
+      <mxGeometry y="30" width="280" height="16" as="geometry"/>
+    </mxCell>
+    <mxCell id="re1" value="+ rank(candidates, visibility, engagement): List&lt;RecommendationCandidate&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="cRanking">
+      <mxGeometry y="46" width="280" height="34" as="geometry"/>
+    </mxCell>
+
+    <!-- ============ Ports (interfaces) ============ -->
+    <mxCell id="cCatalogPort" value="CatalogVisibilityPort" style="swimlane;html=1;childLayout=stackLayout;horizontal=1;startSize=30;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=13;align=center;" vertex="1" parent="1">
+      <mxGeometry x="40" y="420" width="300" height="80" as="geometry"/>
+    </mxCell>
+    <mxCell id="cp0" value="«interface»" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=10;fontStyle=2;" vertex="1" parent="cCatalogPort">
+      <mxGeometry y="30" width="300" height="16" as="geometry"/>
+    </mxCell>
+    <mxCell id="cp1" value="+ checkVisibility(itemId, country, viewerAge): VisibilityResult" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="cCatalogPort">
+      <mxGeometry y="46" width="300" height="34" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="cAudiencePort" value="EngagementSignalPort" style="swimlane;html=1;childLayout=stackLayout;horizontal=1;startSize=30;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;fontSize=13;align=center;" vertex="1" parent="1">
+      <mxGeometry x="40" y="540" width="300" height="80" as="geometry"/>
+    </mxCell>
+    <mxCell id="ap0" value="«interface»" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=10;fontStyle=2;" vertex="1" parent="cAudiencePort">
+      <mxGeometry y="30" width="300" height="16" as="geometry"/>
+    </mxCell>
+    <mxCell id="ap1" value="+ getReactionsSummary(targetId): ReactionsSummary" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="cAudiencePort">
+      <mxGeometry y="46" width="300" height="34" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="cAdPort" value="AdDecisionPort" style="swimlane;html=1;childLayout=stackLayout;horizontal=1;startSize=30;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;fontSize=13;align=center;" vertex="1" parent="1">
+      <mxGeometry x="40" y="660" width="300" height="80" as="geometry"/>
+    </mxCell>
+    <mxCell id="adp0" value="«interface»" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=10;fontStyle=2;" vertex="1" parent="cAdPort">
+      <mxGeometry y="30" width="300" height="16" as="geometry"/>
+    </mxCell>
+    <mxCell id="adp1" value="+ requestAdDecision(userId, category, country): AdSlot" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="cAdPort">
+      <mxGeometry y="46" width="300" height="34" as="geometry"/>
+    </mxCell>
+
+    <!-- ============ Port return-value classes ============ -->
+    <mxCell id="cVisibilityResult" value="VisibilityResult" style="swimlane;html=1;childLayout=stackLayout;horizontal=1;startSize=30;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=13;align=center;" vertex="1" parent="1">
+      <mxGeometry x="420" y="420" width="240" height="100" as="geometry"/>
+    </mxCell>
+    <mxCell id="vr0" value="«value object»" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=10;fontStyle=2;" vertex="1" parent="cVisibilityResult">
+      <mxGeometry y="30" width="240" height="16" as="geometry"/>
+    </mxCell>
+    <mxCell id="vr1" value="+ isVisible: Boolean" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="cVisibilityResult">
+      <mxGeometry y="46" width="240" height="20" as="geometry"/>
+    </mxCell>
+    <mxCell id="vr2" value="+ category: String" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="cVisibilityResult">
+      <mxGeometry y="66" width="240" height="20" as="geometry"/>
+    </mxCell>
+    <mxCell id="vr3" value="+ minAge: Int" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="cVisibilityResult">
+      <mxGeometry y="86" width="240" height="20" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="cReactions" value="ReactionsSummary" style="swimlane;html=1;childLayout=stackLayout;horizontal=1;startSize=30;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;fontSize=13;align=center;" vertex="1" parent="1">
+      <mxGeometry x="420" y="540" width="240" height="80" as="geometry"/>
+    </mxCell>
+    <mxCell id="rc0" value="«value object»" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=10;fontStyle=2;" vertex="1" parent="cReactions">
+      <mxGeometry y="30" width="240" height="16" as="geometry"/>
+    </mxCell>
+    <mxCell id="rc1" value="+ likeCount: Int" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="cReactions">
+      <mxGeometry y="46" width="240" height="20" as="geometry"/>
+    </mxCell>
+    <mxCell id="rc2" value="+ dislikeCount: Int" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="cReactions">
+      <mxGeometry y="66" width="240" height="20" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="cAdSlot" value="AdSlot" style="swimlane;html=1;childLayout=stackLayout;horizontal=1;startSize=30;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;fontSize=13;align=center;" vertex="1" parent="1">
+      <mxGeometry x="420" y="660" width="240" height="100" as="geometry"/>
+    </mxCell>
+    <mxCell id="ad0" value="«value object»" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=10;fontStyle=2;" vertex="1" parent="cAdSlot">
+      <mxGeometry y="30" width="240" height="16" as="geometry"/>
+    </mxCell>
+    <mxCell id="ad1" value="+ adId: String" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="cAdSlot">
+      <mxGeometry y="46" width="240" height="20" as="geometry"/>
+    </mxCell>
+    <mxCell id="ad2" value="+ creativeUrl: String" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="cAdSlot">
+      <mxGeometry y="66" width="240" height="20" as="geometry"/>
+    </mxCell>
+    <mxCell id="ad3" value="+ format: String" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="cAdSlot">
+      <mxGeometry y="86" width="240" height="20" as="geometry"/>
+    </mxCell>
+
+    <!-- ============ ResultType enum ============ -->
+    <mxCell id="cResultType" value="ResultType" style="swimlane;html=1;childLayout=stackLayout;horizontal=1;startSize=30;fillColor=#f5f5f5;strokeColor=#666666;fontStyle=1;fontSize=13;align=center;" vertex="1" parent="1">
+      <mxGeometry x="1280" y="280" width="180" height="80" as="geometry"/>
+    </mxCell>
+    <mxCell id="rt0" value="«enumeration»" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=10;fontStyle=2;" vertex="1" parent="cResultType">
+      <mxGeometry y="30" width="180" height="16" as="geometry"/>
+    </mxCell>
+    <mxCell id="rt1" value="VIDEO&#10;CHANNEL" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=11;" vertex="1" parent="cResultType">
+      <mxGeometry y="46" width="180" height="34" as="geometry"/>
+    </mxCell>
+
+    <!-- ============ Relationships ============ -->
+    <!-- SearchService -> SearchQuery (uses/depends, dashed) -->
+    <mxCell id="r1" value="usa" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endFill=1;dashed=1;exitX=0;exitY=0.3;exitDx=0;exitDy=0;entryX=1;entryY=0.3;entryDx=0;entryDy=0;fontSize=10;" edge="1" parent="1" source="cSearchService" target="cSearchQuery">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <!-- SearchService -> SearchResultResponse (produces, dashed) -->
+    <mxCell id="r2" value="produce" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endFill=1;dashed=1;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;fontSize=10;" edge="1" parent="1" source="cSearchService" target="cResp">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <!-- SearchResultResponse o-- RecommendationCandidate (composition) -->
+    <mxCell id="r3" value="contiene" style="edgeStyle=orthogonalEdgeStyle;html=1;startArrow=diamondThin;startFill=0;endArrow=none;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontSize=10;" edge="1" parent="1" source="cResp" target="cCandidate">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <!-- SearchService -> RankingEngine (delega) -->
+    <mxCell id="r4" value="delega ranking" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endFill=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontSize=10;" edge="1" parent="1" source="cSearchService" target="cRanking">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <!-- RankingEngine -> RecommendationCandidate (ordena, dashed) -->
+    <mxCell id="r5" value="ordena" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endFill=1;dashed=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.7;entryDx=0;entryDy=0;fontSize=10;" edge="1" parent="1" source="cRanking" target="cCandidate">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <!-- SearchService -> CatalogVisibilityPort -->
+    <mxCell id="r6" value="consulta visibilidad" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endFill=1;exitX=0;exitY=0.7;exitDx=0;exitDy=0;entryX=1;entryY=0.3;entryDx=0;entryDy=0;fontSize=10;" edge="1" parent="1" source="cSearchService" target="cCatalogPort">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points"><mxPoint x="380" y="120"/></Array>
+      </mxGeometry>
+    </mxCell>
+
+    <!-- SearchService -> EngagementSignalPort -->
+    <mxCell id="r7" value="consulta senales" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endFill=1;fontSize=10;" edge="1" parent="1" source="cSearchService" target="cAudiencePort">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points"><mxPoint x="440" y="160"/><mxPoint x="440" y="580"/></Array>
+      </mxGeometry>
+    </mxCell>
+
+    <!-- SearchService -> AdDecisionPort -->
+    <mxCell id="r8" value="solicita anuncio" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endFill=1;fontSize=10;" edge="1" parent="1" source="cSearchService" target="cAdPort">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points"><mxPoint x="400" y="170"/><mxPoint x="400" y="700"/></Array>
+      </mxGeometry>
+    </mxCell>
+
+    <!-- Ports return value classes (dashed, ..> retorna) -->
+    <mxCell id="r9" value="retorna" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endFill=1;dashed=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontSize=10;" edge="1" parent="1" source="cCatalogPort" target="cVisibilityResult">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="r10" value="retorna" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endFill=1;dashed=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontSize=10;" edge="1" parent="1" source="cAudiencePort" target="cReactions">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="r11" value="retorna" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endFill=1;dashed=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontSize=10;" edge="1" parent="1" source="cAdPort" target="cAdSlot">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <!-- RecommendationCandidate -> ResultType, SearchQuery -> ResultType (dashed, usa) -->
+    <mxCell id="r12" value="usa" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endFill=1;dashed=1;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;fontSize=10;" edge="1" parent="1" source="cCandidate" target="cResultType">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="r13" value="usa" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endFill=1;dashed=1;fontSize=10;" edge="1" parent="1" source="cSearchQuery" target="cResultType">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points"><mxPoint x="1340" y="60"/></Array>
+      </mxGeometry>
+    </mxCell>
+
+  </root>
+</mxGraphModel>

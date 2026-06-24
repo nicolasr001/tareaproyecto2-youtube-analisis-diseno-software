@@ -1,0 +1,837 @@
+{
+  "openapi": "3.0.4",
+  "info": {
+    "title": "BC4 - Audiencia, Comunidad y Engagement",
+    "description": "Responsabilidad central: gestionar la relacion social entre usuarios, creadores y contenido.\n\nEste contexto trata al usuario como CommunityMember (miembro de comunidad) y al video como EngagementTarget (unidad que recibe likes, comentarios, reacciones), NUNCA como archivo tecnico ni como producto editorial completo. 'Suscripcion' aqui es relacion social (seguir un canal), NO suscripcion de pago (eso vive en Monetizacion BC5).\n\nAlcance (Si): suscripciones, likes, comentarios, notificaciones, historial personal, community posts.\nAlcance (No): ranking del home (Descubrimiento BC3), metadata editorial, transcoding, pagos.\n\nRestriccion de diseno clave: debe validar que el contenido/canal referenciado exista, pero NO duplicar metadata editorial completa (solo guarda el itemId/channelId como referencia, patron Anti-Corruption Layer hacia Catalogo BC2).\n\nConsistencia eventual (RNF-5): si un item es despublicado, las interacciones existentes se ocultan al procesar el evento ItemUnpublished/ItemRestricted.\n\nEventos que EMITE: UserSubscribed, UserUnsubscribed, CommentPosted, CommentDeleted, ReactionRegistered, EngagementSignalAggregated (consumido por Descubrimiento BC3).\nEventos que CONSUME: ItemPublished (para notificar suscriptores), ItemUnpublished/ItemRestricted (para ocultar interacciones).\n\nRequisitos funcionales cubiertos: RF-A1 (suscripciones), RF-A2 (reacciones), RF-A3 (comentarios), RF-A4 (notificaciones), RF-A5 (historial y listas), RF-A6 (comunidad del canal).",
+    "version": "1.2.0",
+    "contact": { "name": "Equipo BC4 - Audiencia", "email": "bc4-audiencia@proyecto-youtube.uoh.cl" }
+  },
+  "servers": [
+    { "url": "https://api.youtube-ddd.local/audiencia/v1", "description": "Servidor del Bounded Context Audiencia, Comunidad y Engagement" }
+  ],
+  "tags": [
+    { "name": "subscriptions", "description": "RF-A1: Suscripciones (relacion social)" },
+    { "name": "reactions",     "description": "RF-A2: Reacciones" },
+    { "name": "comments",      "description": "RF-A3: Comentarios" },
+    { "name": "notifications", "description": "RF-A4: Notificaciones" },
+    { "name": "history",       "description": "RF-A5: Historial y listas personales" },
+    { "name": "community",     "description": "RF-A6: Comunidad del canal" }
+  ],
+  "paths": {
+
+    "/subscriptions": {
+      "post": {
+        "tags": ["subscriptions"],
+        "summary": "Seguir un canal.",
+        "description": "RF-A1: El sistema debe permitir que un usuario siga un canal. Emite evento UserSubscribed.",
+        "operationId": "subscribeToChannel",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SubscribeRequest" },
+              "example": { "userId": "usr-44aa21", "channelId": "chn-55ee10" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Suscripcion creada. Emite evento UserSubscribed.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Subscription" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "409": { "description": "El usuario ya sigue ese canal.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+
+    "/subscriptions/{subscriptionId}": {
+      "delete": {
+        "tags": ["subscriptions"],
+        "summary": "Dejar de seguir un canal.",
+        "description": "RF-A1: El sistema debe permitir dejar de seguir un canal. Emite evento UserUnsubscribed.",
+        "operationId": "unsubscribeFromChannel",
+        "parameters": [{ "name": "subscriptionId", "in": "path", "required": true, "schema": { "type": "string" }, "example": "sub-11bb33" }],
+        "responses": {
+          "204": { "description": "Suscripcion eliminada. Emite evento UserUnsubscribed." },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+
+    "/users/{userId}/subscriptions": {
+      "get": {
+        "tags": ["subscriptions"],
+        "summary": "Listar canales seguidos por un usuario.",
+        "description": "RF-A1: El sistema debe permitir listar los canales seguidos por un usuario.",
+        "operationId": "listUserSubscriptions",
+        "parameters": [
+          { "name": "userId", "in": "path", "required": true, "schema": { "type": "string" }, "example": "usr-44aa21" },
+          { "$ref": "#/components/parameters/PageParam" },
+          { "$ref": "#/components/parameters/PageSizeParam" }
+        ],
+        "responses": {
+          "200": { "description": "Lista paginada de canales seguidos.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SubscriptionListResponse" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+
+    "/channels/{channelId}/subscribers-count": {
+      "get": {
+        "tags": ["subscriptions"],
+        "summary": "Consultar conteo de suscriptores de un canal.",
+        "description": "RF-A1: El sistema debe mantener y exponer el conteo de suscriptores de un canal. Este valor es propio del modelo de Audiencia, distinto al modelo editorial de Catalogo (RNF-2).",
+        "operationId": "getSubscribersCount",
+        "parameters": [{ "name": "channelId", "in": "path", "required": true, "schema": { "type": "string" }, "example": "chn-55ee10" }],
+        "responses": {
+          "200": { "description": "Conteo de suscriptores.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SubscribersCountResponse" }, "example": { "channelId": "chn-55ee10", "subscribersCount": 18420 } } } },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        },
+        "security": []
+      }
+    },
+
+    "/reactions": {
+      "post": {
+        "tags": ["reactions"],
+        "summary": "Expresar reaccion a un contenido.",
+        "description": "RF-A2: El sistema debe permitir expresar reaccion a un contenido (like o dislike). Solo puede existir una reaccion activa por usuario-target. Si ya existe, retorna 409; usar PATCH para cambiarla. Emite evento ReactionRegistered.",
+        "operationId": "createReaction",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateReactionRequest" },
+              "example": { "userId": "usr-44aa21", "targetId": "itm-30bf77", "type": "LIKE" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Reaccion registrada. Emite evento ReactionRegistered.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Reaction" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "409": { "description": "Ya existe una reaccion activa de este usuario en el target. Usar PATCH /reactions/{reactionId} para cambiarla.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+
+    "/reactions/{reactionId}": {
+      "patch": {
+        "tags": ["reactions"],
+        "summary": "Cambiar una reaccion previa.",
+        "description": "RF-A2: El sistema debe permitir cambiar una reaccion previa (ej. de LIKE a DISLIKE).",
+        "operationId": "updateReaction",
+        "parameters": [{ "name": "reactionId", "in": "path", "required": true, "schema": { "type": "string" }, "example": "rxn-77cc11" }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateReactionRequest" }, "example": { "type": "DISLIKE" } } }
+        },
+        "responses": {
+          "200": { "description": "Reaccion actualizada.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Reaction" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "tags": ["reactions"],
+        "summary": "Eliminar una reaccion previa.",
+        "description": "RF-A2: El sistema debe permitir eliminar una reaccion previa.",
+        "operationId": "deleteReaction",
+        "parameters": [{ "name": "reactionId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "204": { "description": "Reaccion eliminada." },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+
+    "/targets/{targetId}/reactions-summary": {
+      "get": {
+        "tags": ["reactions"],
+        "summary": "Totales agregados de reacciones de un EngagementTarget.",
+        "description": "RF-A2: El sistema debe exponer totales agregados de reacciones por contenido. El targetId puede referirse a un video (itemId) o a un post de comunidad (postId).",
+        "operationId": "getReactionsSummary",
+        "parameters": [{ "name": "targetId", "in": "path", "required": true, "schema": { "type": "string" }, "example": "itm-30bf77" }],
+        "responses": {
+          "200": { "description": "Totales agregados de reacciones.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReactionsSummary" }, "example": { "targetId": "itm-30bf77", "likeCount": 5230, "dislikeCount": 41 } } } },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        },
+        "security": []
+      }
+    },
+
+    "/comments": {
+      "post": {
+        "tags": ["comments"],
+        "summary": "Publicar un comentario o respuesta.",
+        "description": "RF-A3: El sistema debe permitir publicar comentarios en un contenido y responder a un comentario (threads). Si parentCommentId es null, el comentario es de primer nivel; si se informa, es una respuesta a ese comentario padre. Emite evento CommentPosted.",
+        "operationId": "postComment",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateCommentRequest" },
+              "example": { "userId": "usr-44aa21", "targetId": "itm-30bf77", "text": "Excelente explicacion de DDD!", "parentCommentId": null }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Comentario publicado. Emite evento CommentPosted.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Comment" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+
+    "/targets/{targetId}/comments": {
+      "get": {
+        "tags": ["comments"],
+        "summary": "Listar comentarios de primer nivel con orden configurable.",
+        "description": "RF-A3: El sistema debe permitir listar comentarios con orden configurable (recientes, top). Solo se listan comentarios de primer nivel; las respuestas se obtienen via GET /comments/{commentId}/replies.",
+        "operationId": "listComments",
+        "parameters": [
+          { "name": "targetId", "in": "path", "required": true, "schema": { "type": "string" }, "example": "itm-30bf77" },
+          { "name": "sortBy", "in": "query", "schema": { "type": "string", "enum": ["RECENT", "TOP"], "default": "TOP" } },
+          { "$ref": "#/components/parameters/PageParam" },
+          { "$ref": "#/components/parameters/PageSizeParam" }
+        ],
+        "responses": {
+          "200": { "description": "Lista paginada de comentarios de primer nivel.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CommentListResponse" } } } },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        },
+        "security": []
+      }
+    },
+
+    "/comments/{commentId}": {
+      "patch": {
+        "tags": ["comments"],
+        "summary": "Editar un comentario propio.",
+        "description": "RF-A3: El sistema debe permitir al autor editar su comentario.",
+        "operationId": "editComment",
+        "parameters": [{ "name": "commentId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EditCommentRequest" }, "example": { "text": "Excelente explicacion de DDD! (editado)" } } }
+        },
+        "responses": {
+          "200": { "description": "Comentario editado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Comment" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "tags": ["comments"],
+        "summary": "Eliminar un comentario propio.",
+        "description": "RF-A3: El sistema debe permitir al autor eliminar su comentario. Emite evento CommentDeleted.",
+        "operationId": "deleteComment",
+        "parameters": [{ "name": "commentId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "204": { "description": "Comentario eliminado. Emite evento CommentDeleted." },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+
+    "/comments/{commentId}/replies": {
+      "get": {
+        "tags": ["comments"],
+        "summary": "Listar respuestas a un comentario (thread).",
+        "description": "RF-A3: El sistema debe permitir responder a un comentario (threads). Este endpoint expone las replies de un comentario padre.",
+        "operationId": "listReplies",
+        "parameters": [
+          { "name": "commentId", "in": "path", "required": true, "schema": { "type": "string" }, "example": "cmt-88dd99" },
+          { "$ref": "#/components/parameters/PageParam" },
+          { "$ref": "#/components/parameters/PageSizeParam" }
+        ],
+        "responses": {
+          "200": { "description": "Lista paginada de respuestas.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CommentListResponse" } } } },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        },
+        "security": []
+      }
+    },
+
+    "/comments/{commentId}/pin": {
+      "post": {
+        "tags": ["comments"],
+        "summary": "Fijar un comentario destacado.",
+        "description": "RF-A3: El sistema debe permitir al creador fijar un comentario destacado. Solo puede existir un comentario fijado por target; fijar uno nuevo desfija el anterior. Solo el creador del canal al que pertenece el target puede ejecutar esta accion (RNF-1).",
+        "operationId": "pinComment",
+        "parameters": [{ "name": "commentId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Comentario fijado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Comment" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "tags": ["comments"],
+        "summary": "Desfijar un comentario.",
+        "description": "RF-A3: Permite al creador remover el pin de un comentario previamente fijado.",
+        "operationId": "unpinComment",
+        "parameters": [{ "name": "commentId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Pin removido.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Comment" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+
+    "/comments/{commentId}/report": {
+      "post": {
+        "tags": ["comments"],
+        "summary": "Reportar un comentario inapropiado.",
+        "description": "RF-A3: El sistema debe permitir reportar comentarios inapropiados. El reporte queda registrado; la moderacion efectiva es transversal (Catalogo BC2).",
+        "operationId": "reportComment",
+        "parameters": [{ "name": "commentId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ReportCommentRequest" },
+              "example": { "reason": "HARASSMENT", "detail": "El comentario contiene insultos hacia el autor." }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Reporte registrado." },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+
+    "/notifications": {
+      "get": {
+        "tags": ["notifications"],
+        "summary": "Listar notificaciones de un usuario.",
+        "description": "RF-A4: El sistema debe permitir listar notificaciones de un usuario, con soporte para filtrar por estado de lectura.",
+        "operationId": "listNotifications",
+        "parameters": [
+          { "name": "userId", "in": "query", "required": true, "schema": { "type": "string" }, "example": "usr-44aa21" },
+          { "name": "isRead", "in": "query", "schema": { "type": "boolean" }, "description": "Filtra por estado de lectura. Si se omite, retorna todas." },
+          { "$ref": "#/components/parameters/PageParam" },
+          { "$ref": "#/components/parameters/PageSizeParam" }
+        ],
+        "responses": {
+          "200": { "description": "Lista paginada de notificaciones.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/NotificationListResponse" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+
+    "/notifications/{notificationId}/read": {
+      "post": {
+        "tags": ["notifications"],
+        "summary": "Marcar notificacion como leida.",
+        "description": "RF-A4: El sistema debe permitir marcar como leidas las notificaciones.",
+        "operationId": "markNotificationRead",
+        "parameters": [{ "name": "notificationId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Notificacion marcada como leida.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Notification" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+
+    "/users/{userId}/notification-preferences": {
+      "get": {
+        "tags": ["notifications"],
+        "summary": "Consultar preferencias de notificacion.",
+        "description": "RF-A4: El sistema debe permitir configurar preferencias de notificacion; este endpoint permite consultarlas.",
+        "operationId": "getNotificationPreferences",
+        "parameters": [{ "name": "userId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Preferencias de notificacion actuales.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/NotificationPreferences" }, "example": { "newVideoFromSubscription": true, "commentReplies": true, "mentions": false, "communityPosts": true } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "put": {
+        "tags": ["notifications"],
+        "summary": "Configurar preferencias de notificacion.",
+        "description": "RF-A4: El sistema debe permitir configurar preferencias de notificacion. Reemplaza completamente las preferencias actuales.",
+        "operationId": "setNotificationPreferences",
+        "parameters": [{ "name": "userId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/NotificationPreferences" }, "example": { "newVideoFromSubscription": true, "commentReplies": true, "mentions": false, "communityPosts": true } } }
+        },
+        "responses": {
+          "200": { "description": "Preferencias actualizadas.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/NotificationPreferences" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+
+    "/users/{userId}/watch-history": {
+      "get": {
+        "tags": ["history"],
+        "summary": "Consultar historial de visualizacion.",
+        "description": "RF-A5: El sistema debe registrar el historial de visualizacion del usuario (que vio y cuando).",
+        "operationId": "getWatchHistory",
+        "parameters": [
+          { "name": "userId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/PageParam" },
+          { "$ref": "#/components/parameters/PageSizeParam" }
+        ],
+        "responses": {
+          "200": { "description": "Historial paginado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WatchHistoryResponse" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "tags": ["history"],
+        "summary": "Borrar todo el historial por privacidad.",
+        "description": "RF-A5: El sistema debe permitir borrar historial por privacidad. Esta operacion elimina todas las entradas del historial del usuario.",
+        "operationId": "clearWatchHistory",
+        "parameters": [{ "name": "userId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "204": { "description": "Historial completo eliminado." },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+
+    "/users/{userId}/watch-history/{entryId}": {
+      "delete": {
+        "tags": ["history"],
+        "summary": "Borrar una entrada individual del historial.",
+        "description": "RF-A5: El sistema debe permitir borrar historial por privacidad. Esta operacion elimina una sola entrada, permitiendo privacidad selectiva.",
+        "operationId": "deleteWatchHistoryEntry",
+        "parameters": [
+          { "name": "userId",  "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "entryId", "in": "path", "required": true, "schema": { "type": "string" }, "example": "whe-99ff12" }
+        ],
+        "responses": {
+          "204": { "description": "Entrada del historial eliminada." },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+
+    "/users/{userId}/watch-later": {
+      "get": {
+        "tags": ["history"],
+        "summary": "Listar contenido guardado para ver despues.",
+        "description": "RF-A5: El sistema debe permitir guardar y consultar contenido para ver despues.",
+        "operationId": "getWatchLater",
+        "parameters": [
+          { "name": "userId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/PageParam" },
+          { "$ref": "#/components/parameters/PageSizeParam" }
+        ],
+        "responses": {
+          "200": { "description": "Lista paginada de items en watch later.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WatchLaterListResponse" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "post": {
+        "tags": ["history"],
+        "summary": "Guardar contenido para ver despues.",
+        "description": "RF-A5: El sistema debe permitir guardar contenido para ver despues.",
+        "operationId": "addToWatchLater",
+        "parameters": [{ "name": "userId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WatchLaterRequest" }, "example": { "targetId": "itm-30bf77" } } }
+        },
+        "responses": {
+          "201": { "description": "Item guardado en watch later.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WatchLaterEntry" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "409": { "description": "El item ya esta en la lista watch later del usuario.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+
+    "/users/{userId}/watch-later/{entryId}": {
+      "delete": {
+        "tags": ["history"],
+        "summary": "Quitar un item de watch later.",
+        "description": "RF-A5: El sistema debe permitir quitar un item de la lista watch later.",
+        "operationId": "removeFromWatchLater",
+        "parameters": [
+          { "name": "userId",  "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "entryId", "in": "path", "required": true, "schema": { "type": "string" }, "example": "wl-88cc21" }
+        ],
+        "responses": {
+          "204": { "description": "Item removido de watch later." },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+
+    "/channels/{channelId}/community-posts": {
+      "post": {
+        "tags": ["community"],
+        "summary": "Publicar post de comunidad.",
+        "description": "RF-A6: El sistema debe permitir al creador publicar posts de comunidad (texto, encuestas, imagenes) independientes de un video. Solo el creador del canal puede publicar (RNF-1).",
+        "operationId": "createCommunityPost",
+        "parameters": [{ "name": "channelId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateCommunityPostRequest" },
+              "example": { "type": "TEXT", "content": "Proximo video: patrones de diseno avanzados!" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Post de comunidad creado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CommunityPost" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      },
+      "get": {
+        "tags": ["community"],
+        "summary": "Listar posts de comunidad de un canal.",
+        "description": "RF-A6: El sistema debe permitir a los usuarios ver e interactuar con posts de comunidad. Operacion publica.",
+        "operationId": "listCommunityPosts",
+        "parameters": [
+          { "name": "channelId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/PageParam" },
+          { "$ref": "#/components/parameters/PageSizeParam" }
+        ],
+        "responses": {
+          "200": { "description": "Lista paginada de posts de comunidad.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CommunityPostListResponse" } } } },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        },
+        "security": []
+      }
+    },
+
+    "/community-posts/{postId}/comments": {
+      "post": {
+        "tags": ["community"],
+        "summary": "Comentar en un post de comunidad.",
+        "description": "RF-A6: El sistema debe permitir a los usuarios comentar en posts de comunidad. Se reutiliza el mecanismo de comentarios (RF-A3) pero el targetId corresponde al postId.",
+        "operationId": "commentOnCommunityPost",
+        "parameters": [{ "name": "postId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateCommentRequest" },
+              "example": { "userId": "usr-44aa21", "targetId": "pst-99cc01", "text": "Gran noticia, esperando ese video!", "parentCommentId": null }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Comentario publicado en el post.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Comment" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+
+    "/community-posts/{postId}/reactions": {
+      "post": {
+        "tags": ["community"],
+        "summary": "Reaccionar a un post de comunidad.",
+        "description": "RF-A6: El sistema debe permitir a los usuarios reaccionar a posts de comunidad. Se reutiliza el mecanismo de reacciones (RF-A2); el targetId corresponde al postId.",
+        "operationId": "reactToCommunityPost",
+        "parameters": [{ "name": "postId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateReactionRequest" },
+              "example": { "userId": "usr-44aa21", "targetId": "pst-99cc01", "type": "LIKE" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Reaccion registrada en el post.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Reaction" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "description": "Ya existe una reaccion activa de este usuario en el post.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    }
+
+  },
+  "components": {
+    "parameters": {
+      "PageParam":     { "name": "page",     "in": "query", "schema": { "type": "integer", "minimum": 1,   "default": 1  } },
+      "PageSizeParam": { "name": "pageSize", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 } }
+    },
+    "schemas": {
+
+      "SubscribeRequest": {
+        "type": "object",
+        "required": ["userId", "channelId"],
+        "properties": {
+          "userId":    { "type": "string" },
+          "channelId": { "type": "string", "description": "Referencia al canal en Catalogo BC2. Solo se guarda el ID; no se duplica la metadata editorial (RNF-2)." }
+        }
+      },
+      "Subscription": {
+        "type": "object",
+        "description": "Entidad de suscripcion social. 'Suscripcion' = relacion social (seguir un canal), NO suscripcion de pago (Monetizacion BC5).",
+        "properties": {
+          "subscriptionId": { "type": "string" },
+          "userId":         { "type": "string" },
+          "channelId":      { "type": "string" },
+          "subscribedAt":   { "type": "string", "format": "date-time" }
+        }
+      },
+      "SubscriptionListResponse": {
+        "type": "object",
+        "properties": {
+          "items":      { "type": "array", "items": { "$ref": "#/components/schemas/Subscription" } },
+          "page":       { "type": "integer" },
+          "pageSize":   { "type": "integer" },
+          "totalItems": { "type": "integer" }
+        }
+      },
+      "SubscribersCountResponse": {
+        "type": "object",
+        "properties": {
+          "channelId":        { "type": "string" },
+          "subscribersCount": { "type": "integer", "description": "Conteo mantenido por este contexto. Fuente de verdad del conteo social (distinto al modelo de Catalogo, RNF-2)." }
+        }
+      },
+
+      "CreateReactionRequest": {
+        "type": "object",
+        "required": ["userId", "targetId", "type"],
+        "properties": {
+          "userId":   { "type": "string" },
+          "targetId": { "type": "string", "description": "Referencia al EngagementTarget (itemId de Catalogo BC2 o postId de comunidad). No se duplica metadata editorial." },
+          "type":     { "type": "string", "enum": ["LIKE", "DISLIKE"] }
+        }
+      },
+      "UpdateReactionRequest": {
+        "type": "object",
+        "required": ["type"],
+        "properties": { "type": { "type": "string", "enum": ["LIKE", "DISLIKE"] } }
+      },
+      "Reaction": {
+        "type": "object",
+        "description": "Entidad de reaccion. Solo puede existir una activa por usuario-target en simultaneo.",
+        "properties": {
+          "reactionId": { "type": "string" },
+          "userId":     { "type": "string" },
+          "targetId":   { "type": "string" },
+          "type":       { "type": "string", "enum": ["LIKE", "DISLIKE"] },
+          "createdAt":  { "type": "string", "format": "date-time" }
+        }
+      },
+      "ReactionsSummary": {
+        "type": "object",
+        "properties": {
+          "targetId":     { "type": "string" },
+          "likeCount":    { "type": "integer" },
+          "dislikeCount": { "type": "integer" }
+        }
+      },
+
+      "CreateCommentRequest": {
+        "type": "object",
+        "required": ["userId", "targetId", "text"],
+        "properties": {
+          "userId":          { "type": "string" },
+          "targetId":        { "type": "string", "description": "EngagementTarget al que pertenece el comentario (itemId de Catalogo BC2 o postId de comunidad)." },
+          "text":            { "type": "string", "minLength": 1, "maxLength": 5000 },
+          "parentCommentId": { "type": "string", "nullable": true, "description": "Si se informa, es una respuesta (thread). Debe referenciar un comentario de primer nivel." }
+        }
+      },
+      "EditCommentRequest": {
+        "type": "object",
+        "required": ["text"],
+        "properties": { "text": { "type": "string", "minLength": 1, "maxLength": 5000 } }
+      },
+      "Comment": {
+        "type": "object",
+        "description": "Aggregate Root de comentarios. Cardinalidad: 1 EngagementTarget -- 0..* Comment (primer nivel); 1 Comment -- 0..* Comment (replies).",
+        "properties": {
+          "commentId":       { "type": "string" },
+          "userId":          { "type": "string" },
+          "targetId":        { "type": "string" },
+          "text":            { "type": "string" },
+          "parentCommentId": { "type": "string", "nullable": true },
+          "isPinned":        { "type": "boolean" },
+          "replyCount":      { "type": "integer", "description": "Numero de respuestas directas a este comentario." },
+          "createdAt":       { "type": "string", "format": "date-time" },
+          "editedAt":        { "type": "string", "format": "date-time", "nullable": true }
+        }
+      },
+      "CommentListResponse": {
+        "type": "object",
+        "properties": {
+          "items":      { "type": "array", "items": { "$ref": "#/components/schemas/Comment" } },
+          "page":       { "type": "integer" },
+          "pageSize":   { "type": "integer" },
+          "totalItems": { "type": "integer" }
+        }
+      },
+      "ReportCommentRequest": {
+        "type": "object",
+        "required": ["reason"],
+        "properties": {
+          "reason": { "type": "string", "enum": ["SPAM", "HARASSMENT", "HATE_SPEECH", "MISINFORMATION", "SEXUAL_CONTENT", "OTHER"] },
+          "detail": { "type": "string", "nullable": true, "maxLength": 1000, "description": "Descripcion adicional opcional." }
+        }
+      },
+
+      "NotificationListResponse": {
+        "type": "object",
+        "properties": {
+          "items":      { "type": "array", "items": { "$ref": "#/components/schemas/Notification" } },
+          "page":       { "type": "integer" },
+          "pageSize":   { "type": "integer" },
+          "totalItems": { "type": "integer" }
+        }
+      },
+      "Notification": {
+        "type": "object",
+        "description": "Entidad de notificacion generada por eventos de este contexto (RF-A4).",
+        "properties": {
+          "notificationId": { "type": "string" },
+          "userId":         { "type": "string" },
+          "type": {
+            "type": "string",
+            "enum": ["NEW_VIDEO_FROM_SUBSCRIPTION", "COMMENT_REPLY", "COMMENT_ON_MY_VIDEO", "MENTION", "COMMUNITY_POST"],
+            "description": "Tipo de evento que origino la notificacion (RF-A4)."
+          },
+          "referenceId":   { "type": "string", "nullable": true, "description": "ID del recurso relacionado (itemId, commentId, postId) para navegacion directa." },
+          "referenceType": { "type": "string", "nullable": true, "enum": ["VIDEO", "COMMENT", "COMMUNITY_POST"], "description": "Tipo del recurso referenciado. Necesario para interpretar referenceId." },
+          "isRead":        { "type": "boolean" },
+          "createdAt":     { "type": "string", "format": "date-time" }
+        }
+      },
+      "NotificationPreferences": {
+        "type": "object",
+        "description": "Preferencias de notificacion del usuario (RF-A4).",
+        "properties": {
+          "newVideoFromSubscription": { "type": "boolean", "description": "Notificar cuando un canal suscripto publique un nuevo video." },
+          "commentReplies":           { "type": "boolean", "description": "Notificar cuando alguien responda a un comentario propio." },
+          "mentions":                 { "type": "boolean", "description": "Notificar cuando alguien mencione al usuario en un comentario." },
+          "communityPosts":           { "type": "boolean", "description": "Notificar cuando un canal suscripto publique un post de comunidad." }
+        }
+      },
+
+      "WatchHistoryResponse": {
+        "type": "object",
+        "properties": {
+          "items":      { "type": "array", "items": { "$ref": "#/components/schemas/WatchHistoryEntry" } },
+          "page":       { "type": "integer" },
+          "pageSize":   { "type": "integer" },
+          "totalItems": { "type": "integer" }
+        }
+      },
+      "WatchHistoryEntry": {
+        "type": "object",
+        "description": "Registro de visualizacion. Cada entrada es eliminable individualmente para privacidad selectiva (RF-A5).",
+        "properties": {
+          "entryId":   { "type": "string", "description": "Identificador unico de la entrada. Necesario para DELETE individual." },
+          "targetId":  { "type": "string", "description": "Referencia al EngagementTarget visto (itemId de Catalogo BC2)." },
+          "watchedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+
+      "WatchLaterRequest": {
+        "type": "object",
+        "required": ["targetId"],
+        "properties": { "targetId": { "type": "string", "description": "Referencia al EngagementTarget a guardar (itemId de Catalogo BC2)." } }
+      },
+      "WatchLaterEntry": {
+        "type": "object",
+        "properties": {
+          "entryId":  { "type": "string", "description": "Identificador unico de la entrada. Necesario para DELETE individual." },
+          "targetId": { "type": "string" },
+          "savedAt":  { "type": "string", "format": "date-time" }
+        }
+      },
+      "WatchLaterListResponse": {
+        "type": "object",
+        "properties": {
+          "items":      { "type": "array", "items": { "$ref": "#/components/schemas/WatchLaterEntry" } },
+          "page":       { "type": "integer" },
+          "pageSize":   { "type": "integer" },
+          "totalItems": { "type": "integer" }
+        }
+      },
+
+      "CreateCommunityPostRequest": {
+        "type": "object",
+        "required": ["type", "content"],
+        "properties": {
+          "type":    { "type": "string", "enum": ["TEXT", "POLL", "IMAGE"], "description": "RF-A6: tipos de post de comunidad." },
+          "content": { "type": "string", "description": "Para TEXT: texto. Para POLL: JSON con opciones. Para IMAGE: URL o referencia del asset." }
+        }
+      },
+      "CommunityPost": {
+        "type": "object",
+        "description": "Entidad de post de comunidad. Independiente de un video; contenido social exclusivo del canal.",
+        "properties": {
+          "postId":    { "type": "string" },
+          "channelId": { "type": "string" },
+          "type":      { "type": "string", "enum": ["TEXT", "POLL", "IMAGE"] },
+          "content":   { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CommunityPostListResponse": {
+        "type": "object",
+        "properties": {
+          "items":      { "type": "array", "items": { "$ref": "#/components/schemas/CommunityPost" } },
+          "page":       { "type": "integer" },
+          "pageSize":   { "type": "integer" },
+          "totalItems": { "type": "integer" }
+        }
+      },
+
+      "ErrorResponse": {
+        "type": "object",
+        "required": ["code", "message", "timestamp"],
+        "properties": {
+          "code":      { "type": "string", "example": "RESOURCE_NOT_FOUND" },
+          "message":   { "type": "string", "example": "El comentario solicitado no existe." },
+          "timestamp": { "type": "string", "format": "date-time" }
+        }
+      }
+
+    },
+    "responses": {
+      "NotFound":    { "description": "Recurso no encontrado.",                              "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+      "BadRequest":  { "description": "Parametros de la peticion invalidos.",                "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+      "Unauthorized":{ "description": "Token de autenticacion ausente o invalido (RNF-1).",  "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+      "Forbidden":   { "description": "El actor autenticado no tiene permiso para esta accion (RNF-1).", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "RNF-1: JWT emitido por la plataforma de identidad compartida (Google Account). El scope indica el rol del actor: viewer, creator, system. Endpoints publicos tienen security:[] para anular el esquema global."
+      }
+    }
+  },
+  "security": [{ "bearerAuth": [] }]
+}
