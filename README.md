@@ -2,8 +2,11 @@
 Proyecto N°2 Diseño de software Prof. Edgardo Ortiz, Semestre Otoño 2026 
 
 Integrantes:
+
 José Osorio
+
 Matias Kroll
+
 Nicolás Rodriguez
 
 reglas del repositorio
