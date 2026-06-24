@@ -1,0 +1,535 @@
+{
+  "openapi": "3.0.4",
+  "info": {
+    "title": "BC3 - Descubrimiento y Personalizacion",
+    "description": "Responsabilidad central: ayudar al usuario a encontrar contenido relevante: busqueda, feeds, recomendaciones, tendencias y ranking.\n\nEste contexto trata el video como RecommendationCandidate (candidato de ranking con score de relevancia), NUNCA como archivo ni como producto editorial completo. Devuelve referencias a contenido (candidateId = itemId en Catalogo), no la metadata completa ni el stream.\n\nAlcance (Si): search, home feed, related, trending, senales de ranking.\nAlcance (No): almacenar comentarios, servir stream, pagar creadores, crear campanas.\n\nRestriccion de diseno clave: este contexto NO define reglas de visibilidad. Debe respetar (patron Conformist) lo que diga Catalogo (BC2) antes de mostrar cualquier resultado. Consistencia eventual (RNF-5): Descubrimiento puede estar momentaneamente desincronizado con Catalogo; si un item es despublicado, el indexer lo removera al procesar el evento ItemRestricted/ItemUnpublished.\n\nEventos que EMITE: SearchPerformed, RecommendationServed.\nEventos que CONSUME: ItemPublished, ItemUpdated, ItemRestricted (desde Catalogo BC2), EngagementSignalAggregated (desde Audiencia BC4), PlaybackSessionCompleted (desde Publicacion BC1).\n\nRequisitos funcionales cubiertos: RF-D1 (busqueda), RF-D2 (feeds personalizados), RF-D3 (contenido relacionado), RF-D4 (tendencias), RF-D5 (captura de senales), RF-D6 (indexacion).",
+    "version": "1.2.0",
+    "contact": { "name": "Equipo BC3 - Descubrimiento", "email": "bc3-descubrimiento@proyecto-youtube.uoh.cl" }
+  },
+  "servers": [
+    { "url": "https://api.youtube-ddd.local/descubrimiento/v1", "description": "Servidor del Bounded Context Descubrimiento y Personalizacion" }
+  ],
+  "tags": [
+    { "name": "search",   "description": "RF-D1: Busqueda de contenido y canales" },
+    { "name": "feeds",    "description": "RF-D2: Feeds personalizados" },
+    { "name": "related",  "description": "RF-D3: Contenido relacionado" },
+    { "name": "trending", "description": "RF-D4: Tendencias y exploracion" },
+    { "name": "signals",  "description": "RF-D5: Captura de senales de interaccion" },
+    { "name": "indexing", "description": "RF-D6: Indexacion (uso interno/sistema)" }
+  ],
+  "paths": {
+    "/search": {
+      "get": {
+        "tags": ["search"],
+        "summary": "Buscar contenido por texto libre.",
+        "description": "RF-D1: El sistema debe permitir buscar contenido por texto libre, filtrar resultados (tipo, fecha, duracion) y ordenarlos (relevancia, fecha, popularidad). Cuando type=CHANNEL se devuelven candidatos de canal; en caso contrario, RecommendationCandidates de video. Operacion publica: no requiere autenticacion.",
+        "operationId": "searchContent",
+        "parameters": [
+          { "name": "q", "in": "query", "required": true, "schema": { "type": "string", "minLength": 1 }, "example": "domain driven design" },
+          { "name": "type", "in": "query", "schema": { "type": "string", "enum": ["VIDEO", "CHANNEL", "ALL"], "default": "ALL" }, "description": "RF-D1: filtrar por tipo de resultado." },
+          { "name": "sortBy", "in": "query", "schema": { "type": "string", "enum": ["RELEVANCE", "DATE", "POPULARITY"], "default": "RELEVANCE" }, "description": "RF-D1: criterio de ordenamiento." },
+          { "name": "uploadDateFilter", "in": "query", "schema": { "type": "string", "enum": ["ANY", "LAST_HOUR", "TODAY", "THIS_WEEK", "THIS_MONTH", "THIS_YEAR"], "default": "ANY" }, "description": "RF-D1: filtrar por fecha de publicacion." },
+          { "name": "durationFilter", "in": "query", "schema": { "type": "string", "enum": ["ANY", "SHORT", "MEDIUM", "LONG"], "default": "ANY" }, "description": "RF-D1: filtrar por duracion (SHORT<4 min, MEDIUM 4-20 min, LONG>20 min). Solo aplica cuando type=VIDEO o ALL." },
+          { "$ref": "#/components/parameters/PageParam" },
+          { "$ref": "#/components/parameters/PageSizeParam" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resultados de busqueda paginados.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SearchResultResponse" },
+                "example": {
+                  "query": "domain driven design",
+                  "results": [
+                    { "candidateId": "itm-30bf77", "type": "VIDEO", "relevanceScore": 0.93, "title": "Introduccion a Domain-Driven Design", "category": "EDUCATION", "channelId": "chn-55ee10", "durationSeconds": 1820, "publishedAt": "2026-06-01T10:00:00Z" },
+                    { "candidateId": "chn-55ee10", "type": "CHANNEL", "relevanceScore": 0.81, "title": "Canal de Tutoriales DDD", "category": null, "channelId": null, "durationSeconds": null, "publishedAt": null }
+                  ],
+                  "page": 1,
+                  "pageSize": 20,
+                  "totalResults": 48
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        },
+        "security": []
+      }
+    },
+    "/search/suggestions": {
+      "get": {
+        "tags": ["search"],
+        "summary": "Sugerencias de autocompletado mientras el usuario escribe.",
+        "description": "RF-D1: El sistema debe ofrecer sugerencias mientras el usuario escribe. Aplica tanto para videos como para canales. Operacion publica.",
+        "operationId": "getSearchSuggestions",
+        "parameters": [
+          { "name": "q", "in": "query", "required": true, "schema": { "type": "string", "minLength": 1 }, "example": "domain dri" },
+          { "name": "type", "in": "query", "schema": { "type": "string", "enum": ["VIDEO", "CHANNEL", "ALL"], "default": "ALL" }, "description": "Tipo de contenido sobre el que se sugiere." }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de sugerencias de autocompletado.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SuggestionsResponse" },
+                "example": { "suggestions": ["domain driven design", "domain driven design tutorial", "domain driven design vs microservices"] }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        },
+        "security": []
+      }
+    },
+    "/feeds/home": {
+      "get": {
+        "tags": ["feeds"],
+        "summary": "Generar el feed de inicio personalizado.",
+        "description": "RF-D2: El sistema debe generar un feed de inicio personalizado por usuario o sesion, con paginacion. Al menos uno de userId o sessionId debe estar presente. Para usuarios autenticados se incluye el JWT; para anonimos se usa solo sessionId. El sistema debe poder explicar internamente por que se recomienda cada item.",
+        "operationId": "getHomeFeed",
+        "parameters": [
+          { "name": "userId", "in": "query", "schema": { "type": "string" }, "description": "ID del usuario autenticado. Requerido si el usuario esta logueado." },
+          { "name": "sessionId", "in": "query", "schema": { "type": "string" }, "description": "ID de sesion anonima. Requerido si el usuario no esta autenticado." },
+          { "$ref": "#/components/parameters/PageParam" },
+          { "$ref": "#/components/parameters/PageSizeParam" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feed personalizado paginado.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/FeedResponse" },
+                "example": {
+                  "items": [
+                    { "candidateId": "itm-30bf77", "type": "VIDEO", "relevanceScore": 0.97, "category": "EDUCATION", "explanation": "Porque viste contenido similar de Arquitectura de Software" }
+                  ],
+                  "page": 1,
+                  "pageSize": 20,
+                  "totalItems": 120
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        },
+        "security": [{ "bearerAuth": [] }]
+      }
+    },
+    "/videos/{candidateId}/related": {
+      "get": {
+        "tags": ["related"],
+        "summary": "Obtener videos relacionados a un candidato.",
+        "description": "RF-D3: Dado un contenido, el sistema debe devolver una lista de videos relacionados considerando similitud tematica, historial y senales de engagement. Solo aplica para candidatos de tipo VIDEO.",
+        "operationId": "getRelatedContent",
+        "parameters": [
+          { "name": "candidateId", "in": "path", "required": true, "schema": { "type": "string" }, "example": "itm-30bf77" },
+          { "name": "userId", "in": "query", "schema": { "type": "string" }, "description": "Opcional. Si se provee, personaliza los resultados con el historial del usuario (RF-D3)." },
+          { "$ref": "#/components/parameters/PageParam" },
+          { "$ref": "#/components/parameters/PageSizeParam" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista paginada de candidatos relacionados.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RelatedContentResponse" }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        },
+        "security": []
+      }
+    },
+    "/trending": {
+      "get": {
+        "tags": ["trending"],
+        "summary": "Calcular y exponer contenido trending.",
+        "description": "RF-D4: El sistema debe calcular y exponer contenido trending por region y/o categoria.",
+        "operationId": "getTrending",
+        "parameters": [
+          { "name": "region", "in": "query", "schema": { "type": "string", "example": "CL" }, "description": "Codigo de pais ISO 3166-1 alpha-2. Si se omite, se devuelve trending global." },
+          { "name": "category", "in": "query", "schema": { "type": "string", "example": "EDUCATION" }, "description": "Filtrar trending por categoria." },
+          { "$ref": "#/components/parameters/PageParam" },
+          { "$ref": "#/components/parameters/PageSizeParam" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista paginada de contenido en tendencia.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TrendingResponse" },
+                "example": {
+                  "region": "CL",
+                  "category": null,
+                  "items": [{ "candidateId": "itm-aa11bb", "type": "VIDEO", "relevanceScore": 0.99, "title": "Tendencia del momento", "category": "ENTERTAINMENT", "channelId": "chn-33ff55", "durationSeconds": 720, "publishedAt": "2026-06-20T08:00:00Z" }],
+                  "page": 1,
+                  "pageSize": 20,
+                  "totalItems": 50
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/explore": {
+      "get": {
+        "tags": ["trending"],
+        "summary": "Explorar contenido por categoria o tema.",
+        "description": "RF-D4: El sistema debe permitir explorar por categoria o tema.",
+        "operationId": "explore",
+        "parameters": [
+          { "name": "category", "in": "query", "required": true, "schema": { "type": "string" }, "example": "EDUCATION" },
+          { "$ref": "#/components/parameters/PageParam" },
+          { "$ref": "#/components/parameters/PageSizeParam" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Contenido de la categoria explorada, paginado.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ExploreResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        },
+        "security": []
+      }
+    },
+    "/signals/impressions": {
+      "post": {
+        "tags": ["signals"],
+        "summary": "Registrar una impresion en feed.",
+        "description": "RF-D5: El sistema debe registrar cuando un usuario ve un item en un feed (impresion) y actualizar el perfil de intereses del usuario. Se puede enviar userId o sessionId.",
+        "operationId": "recordImpression",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ImpressionRequest" },
+              "example": { "userId": "usr-44aa21", "candidateId": "itm-30bf77", "feedContext": "HOME" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Impresion registrada y perfil de intereses actualizado." },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        },
+        "security": [{ "bearerAuth": [] }]
+      }
+    },
+    "/signals/clicks": {
+      "post": {
+        "tags": ["signals"],
+        "summary": "Registrar un click en item recomendado.",
+        "description": "RF-D5: El sistema debe registrar cuando un usuario hace click en un item recomendado y actualizar el perfil de intereses del usuario.",
+        "operationId": "recordClick",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ClickRequest" },
+              "example": { "userId": "usr-44aa21", "candidateId": "itm-30bf77", "feedContext": "HOME" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Click registrado. Perfil de intereses actualizado." },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        },
+        "security": [{ "bearerAuth": [] }]
+      }
+    },
+    "/signals/watch-time": {
+      "post": {
+        "tags": ["signals"],
+        "summary": "Registrar tiempo de visualizacion como senal de interes.",
+        "description": "RF-D5: El sistema debe incorporar tiempo de visualizacion como senal de interes y actualizar el perfil de intereses del usuario. Este endpoint es tipicamente invocado al procesar el evento PlaybackSessionCompleted emitido por Publicacion (BC1).",
+        "operationId": "recordWatchTimeSignal",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/WatchTimeSignalRequest" },
+              "example": { "userId": "usr-44aa21", "candidateId": "itm-30bf77", "watchTimeSeconds": 245, "completionRatio": 0.82, "assetId": "ast-9d12ef" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Senal de watch-time registrada y perfil de interes actualizado." },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        },
+        "security": [{ "bearerAuth": [] }]
+      }
+    },
+    "/users/{userId}/interest-profile": {
+      "get": {
+        "tags": ["signals"],
+        "summary": "Consultar el perfil de intereses calculado del usuario.",
+        "description": "RF-D5: Exposicion del perfil de intereses actualizado a partir de las senales capturadas (impresiones, clicks, watch-time). Solo el propio usuario o el sistema pueden consultarlo (RNF-1).",
+        "operationId": "getInterestProfile",
+        "parameters": [
+          { "name": "userId", "in": "path", "required": true, "schema": { "type": "string" }, "example": "usr-44aa21" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Perfil de intereses del usuario.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InterestProfile" },
+                "example": { "userId": "usr-44aa21", "topCategories": ["EDUCATION", "TECHNOLOGY"], "topTags": ["ddd", "arquitectura"], "lastUpdated": "2026-06-20T15:10:00Z" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        },
+        "security": [{ "bearerAuth": [] }]
+      }
+    },
+    "/index/items": {
+      "post": {
+        "tags": ["indexing"],
+        "summary": "Indexar contenido nuevo publicado.",
+        "description": "RF-D6: El sistema debe indexar contenido nuevo cuando sea publicado en Catalogo (BC2). Este endpoint es invocado por el manejador del evento ItemPublished (uso interno de sistema). El item indexado pasa a ser un RecommendationCandidate elegible para feeds, busquedas y trending.",
+        "operationId": "indexItem",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/IndexItemRequest" },
+              "example": { "itemId": "itm-30bf77", "title": "Introduccion a Domain-Driven Design", "tags": ["ddd", "arquitectura"], "category": "EDUCATION", "channelId": "chn-55ee10", "durationSeconds": 1820, "publishedAt": "2026-06-20T10:00:00Z" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Item indexado exitosamente como RecommendationCandidate." },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        },
+        "security": [{ "bearerAuth": [] }]
+      }
+    },
+    "/index/items/{candidateId}": {
+      "patch": {
+        "tags": ["indexing"],
+        "summary": "Actualizar un item ya indexado.",
+        "description": "RF-D6: El sistema debe actualizar ítems del indice cuando cambie su metadata en Catalogo (evento ItemUpdated). Solo se actualizan los campos provistos (semantica PATCH).",
+        "operationId": "updateIndexedItem",
+        "parameters": [
+          { "name": "candidateId", "in": "path", "required": true, "schema": { "type": "string" }, "example": "itm-30bf77" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateIndexItemRequest" },
+              "example": { "title": "Introduccion a DDD - Edicion Revisada", "tags": ["ddd", "arquitectura", "diseno"] }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Item actualizado en el indice." },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        },
+        "security": [{ "bearerAuth": [] }]
+      },
+      "delete": {
+        "tags": ["indexing"],
+        "summary": "Remover un item del indice.",
+        "description": "RF-D6: El sistema debe remover items del indice cuando su visibilidad cambie a no-publicable (evento ItemUnpublished o ItemRestricted desde Catalogo BC2). El item deja de aparecer en feeds, busquedas y trending.",
+        "operationId": "removeFromIndex",
+        "parameters": [
+          { "name": "candidateId", "in": "path", "required": true, "schema": { "type": "string" }, "example": "itm-30bf77" }
+        ],
+        "responses": {
+          "204": { "description": "Item removido del indice." },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        },
+        "security": [{ "bearerAuth": [] }]
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "PageParam":     { "name": "page",     "in": "query", "schema": { "type": "integer", "minimum": 1,   "default": 1  } },
+      "PageSizeParam": { "name": "pageSize", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 } }
+    },
+    "schemas": {
+      "RecommendationCandidate": {
+        "type": "object",
+        "description": "Aggregate Root de este Bounded Context. Representa el video (o canal) como candidato de ranking, NO como archivo ni como producto editorial. 'title' es copia liviana indexada, no fuente de verdad editorial (RNF-2).",
+        "required": ["candidateId", "type"],
+        "properties": {
+          "candidateId":     { "type": "string",  "description": "Mismo valor que itemId en Catalogo BC2, pero modelo de datos completamente distinto (RNF-2).", "example": "itm-30bf77" },
+          "type":            { "type": "string",  "enum": ["VIDEO", "CHANNEL"], "description": "Tipo de candidato. Permite resultados mixtos en busqueda (RF-D1)." },
+          "relevanceScore":  { "type": "number",  "format": "float", "description": "Score calculado por el motor de ranking de este contexto." },
+          "category":        { "type": "string",  "nullable": true, "description": "Categoria indexada desde Catalogo BC2." },
+          "title":           { "type": "string",  "description": "Copia liviana indexada. NO es la fuente de verdad editorial (BC2)." },
+          "channelId":       { "type": "string",  "nullable": true, "description": "Referencia al canal propietario. Solo para candidatos VIDEO." },
+          "durationSeconds": { "type": "integer", "nullable": true, "description": "Duracion indexada en segundos. Solo para candidatos VIDEO." },
+          "publishedAt":     { "type": "string",  "format": "date-time", "nullable": true, "description": "Fecha de publicacion indexada." }
+        }
+      },
+      "SearchResultResponse": {
+        "type": "object",
+        "properties": {
+          "query":        { "type": "string" },
+          "results":      { "type": "array", "items": { "$ref": "#/components/schemas/RecommendationCandidate" } },
+          "page":         { "type": "integer" },
+          "pageSize":     { "type": "integer" },
+          "totalResults": { "type": "integer" }
+        }
+      },
+      "SuggestionsResponse": {
+        "type": "object",
+        "properties": {
+          "suggestions": { "type": "array", "items": { "type": "string" }, "description": "Lista de queries sugeridas para autocompletado." }
+        }
+      },
+      "FeedItem": {
+        "type": "object",
+        "description": "Item del feed personalizado. Extiende RecommendationCandidate con la explicacion de por que fue recomendado (RF-D2).",
+        "properties": {
+          "candidateId":    { "type": "string" },
+          "type":           { "type": "string", "enum": ["VIDEO", "CHANNEL"] },
+          "relevanceScore": { "type": "number" },
+          "category":       { "type": "string", "nullable": true },
+          "explanation":    { "type": "string", "description": "RF-D2: razon por la que se recomienda este item (ej. 'Porque viste contenido de Arquitectura de Software')." }
+        }
+      },
+      "FeedResponse": {
+        "type": "object",
+        "properties": {
+          "items":      { "type": "array", "items": { "$ref": "#/components/schemas/FeedItem" } },
+          "page":       { "type": "integer" },
+          "pageSize":   { "type": "integer" },
+          "totalItems": { "type": "integer" }
+        }
+      },
+      "RelatedContentResponse": {
+        "type": "object",
+        "properties": {
+          "items":      { "type": "array", "items": { "$ref": "#/components/schemas/RecommendationCandidate" } },
+          "page":       { "type": "integer" },
+          "pageSize":   { "type": "integer" },
+          "totalItems": { "type": "integer" }
+        }
+      },
+      "TrendingResponse": {
+        "type": "object",
+        "properties": {
+          "region":     { "type": "string", "nullable": true },
+          "category":   { "type": "string", "nullable": true },
+          "items":      { "type": "array", "items": { "$ref": "#/components/schemas/RecommendationCandidate" } },
+          "page":       { "type": "integer" },
+          "pageSize":   { "type": "integer" },
+          "totalItems": { "type": "integer" }
+        }
+      },
+      "ExploreResponse": {
+        "type": "object",
+        "properties": {
+          "category":   { "type": "string" },
+          "items":      { "type": "array", "items": { "$ref": "#/components/schemas/RecommendationCandidate" } },
+          "page":       { "type": "integer" },
+          "pageSize":   { "type": "integer" },
+          "totalItems": { "type": "integer" }
+        }
+      },
+      "ImpressionRequest": {
+        "type": "object",
+        "required": ["candidateId", "feedContext"],
+        "properties": {
+          "userId":      { "type": "string", "description": "ID del usuario autenticado. Exclusivo con sessionId." },
+          "sessionId":   { "type": "string", "description": "ID de sesion anonima. Exclusivo con userId." },
+          "candidateId": { "type": "string" },
+          "feedContext": { "type": "string", "enum": ["HOME", "RELATED", "TRENDING", "SEARCH", "EXPLORE"], "description": "Contexto del feed donde se produjo la impresion." }
+        }
+      },
+      "ClickRequest": {
+        "type": "object",
+        "required": ["candidateId", "feedContext"],
+        "properties": {
+          "userId":      { "type": "string" },
+          "sessionId":   { "type": "string" },
+          "candidateId": { "type": "string" },
+          "feedContext": { "type": "string", "enum": ["HOME", "RELATED", "TRENDING", "SEARCH", "EXPLORE"] }
+        }
+      },
+      "WatchTimeSignalRequest": {
+        "type": "object",
+        "required": ["candidateId", "watchTimeSeconds"],
+        "properties": {
+          "userId":           { "type": "string" },
+          "candidateId":      { "type": "string" },
+          "watchTimeSeconds": { "type": "integer", "minimum": 0, "description": "Segundos totales vistos." },
+          "completionRatio":  { "type": "number", "format": "float", "minimum": 0, "maximum": 1, "description": "Proporcion del video visto (0.0 a 1.0). Senal fuerte de interes." },
+          "assetId":          { "type": "string", "description": "Referencia al assetId del evento PlaybackSessionCompleted de Publicacion (BC1)." }
+        }
+      },
+      "InterestProfile": {
+        "type": "object",
+        "description": "Value Object derivado del agregado de personalizacion. Calculado a partir de senales de impresion, click y watch-time.",
+        "properties": {
+          "userId":         { "type": "string" },
+          "topCategories":  { "type": "array", "items": { "type": "string" }, "description": "Categorias de mayor interes en orden descendente." },
+          "topTags":        { "type": "array", "items": { "type": "string" }, "description": "Tags de mayor interes en orden descendente." },
+          "lastUpdated":    { "type": "string", "format": "date-time" }
+        }
+      },
+      "IndexItemRequest": {
+        "type": "object",
+        "required": ["itemId", "title", "publishedAt"],
+        "properties": {
+          "itemId":          { "type": "string", "description": "ID del item publicado en Catalogo (BC2). Se usa como candidateId en este contexto." },
+          "title":           { "type": "string" },
+          "tags":            { "type": "array", "items": { "type": "string" } },
+          "category":        { "type": "string" },
+          "channelId":       { "type": "string", "description": "ID del canal propietario." },
+          "durationSeconds": { "type": "integer", "description": "Necesario para el filtro de duracion en busqueda (RF-D1)." },
+          "publishedAt":     { "type": "string", "format": "date-time", "description": "Necesaria para ordenar y filtrar por fecha (RF-D1)." }
+        }
+      },
+      "UpdateIndexItemRequest": {
+        "type": "object",
+        "description": "Campos actualizables del indice. Solo se modifican los campos presentes (PATCH semantico).",
+        "properties": {
+          "title":    { "type": "string" },
+          "tags":     { "type": "array", "items": { "type": "string" } },
+          "category": { "type": "string" }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": ["code", "message", "timestamp"],
+        "properties": {
+          "code":      { "type": "string", "example": "ITEM_NOT_FOUND" },
+          "message":   { "type": "string", "example": "El candidato solicitado no existe en el indice." },
+          "timestamp": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+    "responses": {
+      "NotFound":    { "description": "Recurso no encontrado.",                          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+      "BadRequest":  { "description": "Parametros de la peticion invalidos.",            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+      "Unauthorized":{ "description": "Token de autenticacion ausente o invalido (RNF-1).", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "RNF-1: JWT emitido por la plataforma de identidad compartida (Google Account). El scope indica el rol del actor: viewer, creator, system. Endpoints publicos tienen security:[] para anular el esquema global."
+      }
+    }
+  },
+  "security": [{ "bearerAuth": [] }]
+}

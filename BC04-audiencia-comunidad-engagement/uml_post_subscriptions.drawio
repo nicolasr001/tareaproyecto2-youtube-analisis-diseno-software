@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+
+    <!-- Title -->
+    <mxCell id="title" value="UML de Clases — BC4 Audiencia: POST /subscriptions" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="80" y="20" width="800" height="30" as="geometry"/>
+    </mxCell>
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!-- CLASS: SubscribeRequest (Value Object) -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <mxCell id="vo1" value="«value object»&#xa;SubscribeRequest" style="swimlane;fontStyle=1;align=center;startSize=40;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="1">
+      <mxGeometry x="60" y="80" width="200" height="140" as="geometry"/>
+    </mxCell>
+    <mxCell id="vo1a" value="+ userId: string&#xa;+ channelId: string" style="text;html=1;align=left;verticalAlign=top;spacingLeft=8;fontSize=11;" vertex="1" parent="vo1">
+      <mxGeometry x="0" y="40" width="200" height="50" as="geometry"/>
+    </mxCell>
+    <mxCell id="vo1b" value="+ validate(): boolean" style="text;html=1;align=left;verticalAlign=top;spacingLeft=8;fontSize=11;strokeColor=none;fillColor=none;borderColor=none;" vertex="1" parent="vo1">
+      <mxGeometry x="0" y="100" width="200" height="30" as="geometry"/>
+    </mxCell>
+    <mxCell id="vo1div" value="" style="line;html=1;" vertex="1" parent="vo1">
+      <mxGeometry x="0" y="95" width="200" height="10" as="geometry"/>
+    </mxCell>
+
+    <!-- CLASS: SubscriptionController -->
+    <mxCell id="ctrl" value="«controller»&#xa;SubscriptionController" style="swimlane;fontStyle=1;align=center;startSize=40;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+      <mxGeometry x="320" y="80" width="240" height="160" as="geometry"/>
+    </mxCell>
+    <mxCell id="ctrlf" value="- catalogClient: BC2CatalogClient&#xa;- eventBus: EventBus" style="text;html=1;align=left;verticalAlign=top;spacingLeft=8;fontSize=11;" vertex="1" parent="ctrl">
+      <mxGeometry x="0" y="40" width="240" height="50" as="geometry"/>
+    </mxCell>
+    <mxCell id="ctrldiv" value="" style="line;html=1;" vertex="1" parent="ctrl">
+      <mxGeometry x="0" y="95" width="240" height="10" as="geometry"/>
+    </mxCell>
+    <mxCell id="ctrlm" value="+ subscribe(req: SubscribeRequest): Subscription&#xa;+ unsubscribe(subscriptionId: string): void&#xa;+ listSubscriptions(userId): SubscriptionListResponse" style="text;html=1;align=left;verticalAlign=top;spacingLeft=8;fontSize=11;" vertex="1" parent="ctrl">
+      <mxGeometry x="0" y="100" width="240" height="55" as="geometry"/>
+    </mxCell>
+
+    <!-- CLASS: Subscription (Aggregate Root) -->
+    <mxCell id="agg" value="«aggregate root»&#xa;Subscription" style="swimlane;fontStyle=1;align=center;startSize=40;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+      <mxGeometry x="320" y="310" width="240" height="180" as="geometry"/>
+    </mxCell>
+    <mxCell id="aggf" value="+ subscriptionId: string&#xa;+ userId: string&#xa;+ channelId: string&#xa;+ subscribedAt: DateTime" style="text;html=1;align=left;verticalAlign=top;spacingLeft=8;fontSize=11;" vertex="1" parent="agg">
+      <mxGeometry x="0" y="40" width="240" height="80" as="geometry"/>
+    </mxCell>
+    <mxCell id="aggdiv" value="" style="line;html=1;" vertex="1" parent="agg">
+      <mxGeometry x="0" y="125" width="240" height="10" as="geometry"/>
+    </mxCell>
+    <mxCell id="aggm" value="+ create(userId: string, channelId: string): Subscription" style="text;html=1;align=left;verticalAlign=top;spacingLeft=8;fontSize=11;" vertex="1" parent="agg">
+      <mxGeometry x="0" y="135" width="240" height="35" as="geometry"/>
+    </mxCell>
+
+    <!-- CLASS: CommunityMember (Entity) -->
+    <mxCell id="cm" value="«entity»&#xa;CommunityMember" style="swimlane;fontStyle=1;align=center;startSize=40;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="1">
+      <mxGeometry x="60" y="310" width="200" height="150" as="geometry"/>
+    </mxCell>
+    <mxCell id="cmf" value="+ userId: string&#xa;+ notificationPrefs: NotificationPreferences" style="text;html=1;align=left;verticalAlign=top;spacingLeft=8;fontSize=11;" vertex="1" parent="cm">
+      <mxGeometry x="0" y="40" width="200" height="50" as="geometry"/>
+    </mxCell>
+    <mxCell id="cmdiv" value="" style="line;html=1;" vertex="1" parent="cm">
+      <mxGeometry x="0" y="95" width="200" height="10" as="geometry"/>
+    </mxCell>
+    <mxCell id="cmm" value="+ getSubscriptions(): Subscription[]" style="text;html=1;align=left;verticalAlign=top;spacingLeft=8;fontSize=11;" vertex="1" parent="cm">
+      <mxGeometry x="0" y="105" width="200" height="35" as="geometry"/>
+    </mxCell>
+
+    <!-- CLASS: BC2CatalogClient (Port / ACL) -->
+    <mxCell id="bc2" value="«port / ACL»&#xa;BC2CatalogClient" style="swimlane;fontStyle=1;align=center;startSize=40;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;" vertex="1" parent="1">
+      <mxGeometry x="630" y="80" width="240" height="130" as="geometry"/>
+    </mxCell>
+    <mxCell id="bc2f" value="- baseUrl: string" style="text;html=1;align=left;verticalAlign=top;spacingLeft=8;fontSize=11;" vertex="1" parent="bc2">
+      <mxGeometry x="0" y="40" width="240" height="25" as="geometry"/>
+    </mxCell>
+    <mxCell id="bc2div" value="" style="line;html=1;" vertex="1" parent="bc2">
+      <mxGeometry x="0" y="70" width="240" height="10" as="geometry"/>
+    </mxCell>
+    <mxCell id="bc2m" value="+ checkVisibility(itemId: string, country: string,&#xa;  viewerAge: int): VisibilityDTO" style="text;html=1;align=left;verticalAlign=top;spacingLeft=8;fontSize=11;" vertex="1" parent="bc2">
+      <mxGeometry x="0" y="80" width="240" height="40" as="geometry"/>
+    </mxCell>
+
+    <!-- CLASS: EventBus (Port) -->
+    <mxCell id="eb" value="«port»&#xa;EventBus" style="swimlane;fontStyle=1;align=center;startSize=40;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="1">
+      <mxGeometry x="630" y="280" width="240" height="150" as="geometry"/>
+    </mxCell>
+    <mxCell id="ebm" value="+ publish(event: DomainEvent): void" style="text;html=1;align=left;verticalAlign=top;spacingLeft=8;fontSize=11;" vertex="1" parent="eb">
+      <mxGeometry x="0" y="40" width="240" height="30" as="geometry"/>
+    </mxCell>
+    <mxCell id="ebdiv" value="" style="line;html=1;" vertex="1" parent="eb">
+      <mxGeometry x="0" y="75" width="240" height="10" as="geometry"/>
+    </mxCell>
+    <mxCell id="ebevt" value="events emitidos:&#xa;  UserSubscribed&#xa;  UserUnsubscribed" style="text;html=1;align=left;verticalAlign=top;spacingLeft=8;fontSize=11;" vertex="1" parent="eb">
+      <mxGeometry x="0" y="85" width="240" height="55" as="geometry"/>
+    </mxCell>
+
+    <!-- ═══════════════ RELATIONSHIPS ═══════════════ -->
+
+    <!-- SubscribeRequest --uses--> SubscriptionController (dashed arrow) -->
+    <mxCell id="r1" value="«usa»" style="edgeStyle=orthogonalEdgeStyle;html=1;dashed=1;endArrow=open;endFill=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontSize=11;" edge="1" parent="1" source="vo1" target="ctrl">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <!-- SubscriptionController --creates--> Subscription (dashed arrow) -->
+    <mxCell id="r2" value="«crea»" style="edgeStyle=orthogonalEdgeStyle;html=1;dashed=1;endArrow=open;endFill=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontSize=11;" edge="1" parent="1" source="ctrl" target="agg">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <!-- SubscriptionController --calls--> BC2CatalogClient (dashed arrow) -->
+    <mxCell id="r3" value="«llama»" style="edgeStyle=orthogonalEdgeStyle;html=1;dashed=1;endArrow=open;endFill=0;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontSize=11;" edge="1" parent="1" source="ctrl" target="bc2">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <!-- SubscriptionController --emits--> EventBus (dashed arrow) -->
+    <mxCell id="r4" value="«emite»" style="edgeStyle=orthogonalEdgeStyle;html=1;dashed=1;endArrow=open;endFill=0;exitX=1;exitY=0.7;exitDx=0;exitDy=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;fontSize=11;" edge="1" parent="1" source="ctrl" target="eb">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <!-- CommunityMember 1..* Subscription (aggregation) -->
+    <mxCell id="r5" value="1..*" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endFill=0;startArrow=ERmanyToOne;startFill=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontSize=11;" edge="1" parent="1" source="cm" target="agg">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <!-- ═══════════════ DDD DESIGN NOTE ═══════════════ -->
+    <mxCell id="ddnote" value="&lt;b&gt;Nota de diseño DDD — BC4 Audiencia&lt;/b&gt;&lt;br&gt;• CommunityMember: modelo canónico del usuario en BC4 (distinto a Viewer en BC3, Creator en BC2, Advertiser en BC6)&lt;br&gt;• Subscription = relación social (seguir un canal), NO suscripción de pago (eso vive en BC5 Monetización)&lt;br&gt;• BC2CatalogClient es un Anti-Corruption Layer: BC4 guarda solo channelId, jamás duplica metadata editorial (RNF-2)&lt;br&gt;• EventBus desacopla: UserSubscribed es consumido por BC4 (notificaciones) y opcionalmente por BC3 (Descubrimiento)" style="text;html=1;strokeColor=#666666;fillColor=#f5f5f5;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=11;spacingLeft=6;" vertex="1" parent="1">
+      <mxGeometry x="60" y="530" width="810" height="90" as="geometry"/>
+    </mxCell>
+
+  </root>
+</mxGraphModel>
