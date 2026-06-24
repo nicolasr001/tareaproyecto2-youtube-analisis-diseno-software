@@ -1,6 +1,11 @@
 # tareaproyecto2-youtube-analisis-diseno-software
 Proyecto N°2 Diseño de software Prof. Edgardo Ortiz, Semestre Otoño 2026 
 
+Integrantes:
+José Osorio
+Matias Kroll
+Nicolás Rodriguez
+
 reglas del repositorio
 
 No trabajar directamente en main
