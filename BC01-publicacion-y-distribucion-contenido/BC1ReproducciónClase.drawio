@@ -1,0 +1,31 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Página-1" id="NHS4cI9Dsm-NInBAKoDS">
+    <mxGraphModel dx="778" dy="548" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="zXftCH_hcmbS_z1SL8lR-1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;VideoAsset&lt;/b&gt;&lt;hr&gt;+ assetId: String&lt;br&gt;+ status: String&lt;br&gt;+ durationSeconds: int&lt;br&gt;+ calidadesDisponibles: List&amp;lt;String&amp;gt;" vertex="1">
+          <mxGeometry height="130" width="220" x="170" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="zXftCH_hcmbS_z1SL8lR-2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;PlaybackSession&lt;/b&gt;&lt;hr&gt;+ sessionId: String&lt;br&gt;+ assetId: String&lt;br&gt;+ deviceId: String&lt;br&gt;+ startedAt: DateTime&lt;br&gt;+ endedAt: DateTime&lt;br&gt;+ estado: String&lt;hr&gt;+ iniciar()&lt;br&gt;+ actualizarProgreso()&lt;br&gt;+ finalizar()" vertex="1">
+          <mxGeometry height="230" width="260" x="490" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="zXftCH_hcmbS_z1SL8lR-3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;DeviceContext&lt;/b&gt;&lt;hr&gt;+ tipoDispositivo: String&lt;br&gt;+ anchoBanda: String&lt;br&gt;+ region: String" vertex="1">
+          <mxGeometry height="110" width="220" x="850" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="zXftCH_hcmbS_z1SL8lR-4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;PlaybackMetric&lt;/b&gt;&lt;hr&gt;+ metricId: String&lt;br&gt;+ sessionId: String&lt;br&gt;+ calidadUsada: String&lt;br&gt;+ segundosVistos: int&lt;br&gt;+ interrupciones: int" vertex="1">
+          <mxGeometry height="130" width="260" x="490" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="zXftCH_hcmbS_z1SL8lR-5" edge="1" parent="1" source="zXftCH_hcmbS_z1SL8lR-1" style="edgeStyle=none;rounded=0;html=1;endArrow=none;startArrow=diamond;startFill=0;startSize=16;fontSize=10;labelBackgroundColor=#ffffff;" target="zXftCH_hcmbS_z1SL8lR-2" value="1          se reproduce en          0..*">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="zXftCH_hcmbS_z1SL8lR-6" edge="1" parent="1" source="zXftCH_hcmbS_z1SL8lR-2" style="edgeStyle=none;rounded=0;html=1;endArrow=none;startArrow=diamond;startFill=0;startSize=16;fontSize=10;labelBackgroundColor=#ffffff;" target="zXftCH_hcmbS_z1SL8lR-3" value="1          ocurre en          1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="zXftCH_hcmbS_z1SL8lR-7" edge="1" parent="1" source="zXftCH_hcmbS_z1SL8lR-2" style="edgeStyle=none;rounded=0;html=1;endArrow=none;startArrow=diamond;startFill=0;startSize=16;fontSize=10;labelBackgroundColor=#ffffff;" target="zXftCH_hcmbS_z1SL8lR-4" value="1          acumula          0..*">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
